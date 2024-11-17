@@ -1,0 +1,1 @@
+INADS (Intelligent Network Anomaly Detection System) – A security tool for detecting and analyzing network anomalies using multi-staged machine learning models with a user-friendly dashboard for security administrators.
