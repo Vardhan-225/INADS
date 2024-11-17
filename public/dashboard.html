@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <title>INADS Dashboard</title>
+    <style>
+        body {
+            background-color: #0f0f0f; /* Very dark background for a professional security feel */
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden; /* Prevents horizontal overflow */
+        }
+
+        /* Fixed Navbar */
+        .navbar {
+            background-color: #1a1a1a; /* Darker navbar for distinct contrast */
+            padding: 10px 20px;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000; /* Ensures navbar stays on top */
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .hamburger {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #e0e0e0;
+            margin-right: 20px;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 60px; /* Positioned below navbar */
+            left: -250px; /* Hide off screen initially */
+            width: 250px;
+            height: calc(100% - 60px);
+            background-color: #1a1a1a;
+            padding: 20px 0;
+            z-index: 900;
+            transition: left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Smooth transition */
+        }
+
+        .sidebar.open {
+            left: 0; /* Show sidebar when open */
+        }
+
+        .sidebar .list-group-item {
+            background-color: #1a1a1a;
+            color: #b0b0b0;
+            text-align: center;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar .list-group-item:hover {
+            background-color: #333;
+            color: #ffffff;
+        }
+
+        .sidebar .list-group-item.active {
+            background-color: #00c853;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        /* Logout Button in Sidebar */
+        .logout-btn-sidebar {
+            background-color: #444; /* Gray by default */
+            border: none;
+            color: #e0e0e0;
+            width: calc(100% - 40px);
+            margin: 20px auto;
+            padding: 10px 15px;
+            border-radius: 5px;
+            display: block;
+            transition: background-color 0.3s ease;
+        }
+
+        .logout-btn-sidebar:hover {
+            background-color: #ff3b30; /* Red on hover */
+            color: #ffffff;
+        }
+
+        /* Main Content Styles */
+        .container.main-content {
+            margin-top: 80px; /* Add margin to avoid being hidden under the fixed navbar */
+            width: 90%; /* Reduce width slightly to add space on both sides */
+            max-width: 1200px; /* Limit max width for better readability on large screens */
+            margin-left: auto;
+            margin-right: auto;
+            transition: margin-left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1), width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Smooth transition when sidebar is open */
+        }
+
+        .container.main-content.sidebar-open {
+            margin-left: 260px; /* Adjust when sidebar is open */
+            width: calc(100% - 260px); /* Adjust width accordingly */
+        }
+
+        .card {
+            background-color: #1e1e1e; /* Dark background for the card */
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        .card-header {
+            background-color: #333;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .metrics-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .metric-card {
+            flex: 1 1 calc(30% - 20px);
+            text-align: center;
+            padding: 15px;
+        }
+
+        .chart-container {
+            padding: 20px;
+        }
+
+        .logs-table-container {
+            overflow-x: auto;
+        }
+
+        .logs-table {
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .metrics-row {
+                flex-direction: column;
+            }
+            .main-content {
+                margin-left: 0;
+                width: calc(100% - 20px);
+            }
+            .sidebar {
+                position: relative;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
+        <a class="navbar-brand" href="#"><i class="fas fa-shield-virus"></i> INADS Dashboard</a>
+    </nav>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="list-group">
+            <a href="#" class="list-group-item list-group-item-action active">Overview</a>
+            <a href="#" class="list-group-item list-group-item-action">Logs</a>
+            <a href="#" class="list-group-item list-group-item-action">Anomalies</a>
+            <a href="#" class="list-group-item list-group-item-action">Settings</a>
+        </div>
+        <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            const mainContent = document.querySelector(".main-content");
+            sidebar.classList.toggle("open");
+            mainContent.classList.toggle("sidebar-open");
+        }
+
+        function logoutRedirect() {
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 500);
+        }
+    </script>
+
+    <!-- Main Content -->
+    <div class="container main-content mt-4">
+        <!-- Key Metrics Cards -->
+        <div class="metrics-row">
+            <div class="card metric-card">
+                <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Total Anomalies Detected</div>
+                <div class="card-body">
+                    <h5 class="card-title">0</h5>
+                    <p class="card-text">Number of anomalies detected by INADS.</p>
+                </div>
+            </div>
+            <div class="card metric-card">
+                <div class="card-header"><i class="fas fa-code"></i> SQLi Attacks Detected</div>
+                <div class="card-body">
+                    <h5 class="card-title">0</h5>
+                    <p class="card-text">Total number of SQL Injection attacks detected.</p>
+                </div>
+            </div>
+            <div class="card metric-card">
+                <div class="card-header"><i class="fas fa-shield-alt"></i> DDoS Attacks Detected</div>
+                <div class="card-body">
+                    <h5 class="card-title">0</h5>
+                    <p class="card-text">Total number of DDoS attacks detected.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Placeholder for Charts -->
+        <div class="card text-light chart-container">
+            <div class="card-header"><i class="fas fa-chart-line"></i> Anomalies Over Time</div>
+            <div class="card-body">
+                <canvas id="anomaliesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Logs Table Placeholder -->
+        <div class="card text-light logs-table-container">
+            <div class="card-header"><i class="fas fa-list-alt"></i> Recent Logs</div>
+            <div class="card-body">
+                <table class="table table-dark table-striped logs-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Source IP</th>
+                            <th>Destination IP</th>
+                            <th>Event Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include JS Libraries for Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Placeholder chart for anomalies over time
+        const ctx = document.getElementById('anomaliesChart').getContext('2d');
+        const anomaliesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'], // Placeholder months
+                datasets: [{
+                    label: 'Anomalies Detected',
+                    data: [2, 5, 3, 4, 7], // Placeholder data
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

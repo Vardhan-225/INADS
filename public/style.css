@@ -1,0 +1,108 @@
+/* General Styles */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #1d1f27; /* Dark background for security tool feel */
+    color: #e0e0e0; /* Light gray text */
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+}
+
+/* Login Container */
+.login-container {
+    background: #2a2e38; /* Dark container background */
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+}
+
+/* Form Header */
+.form-header {
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.form-header h2 {
+    margin: 0;
+    margin-bottom: 10px;
+}
+
+.form-header i {
+    font-size: 2rem;
+    color: #00c853; /* Bright green icon */
+}
+
+/* Input Group */
+.input-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.input-icon {
+    position: relative;
+}
+
+.input-icon i {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    color: #888;
+}
+
+input[type="text"], input[type="password"] {
+    width: calc(100% - 40px); /* Adjust to make space for the icon */
+    padding: 10px 10px 10px 40px; /* Adjust for icon */
+    margin-top: 5px;
+    background: #3c4049;
+    border: 1px solid #555;
+    border-radius: 5px;
+    color: #e0e0e0;
+}
+
+input:focus {
+    border-color: #00c853;
+    outline: none;
+}
+
+/* Action Group */
+.action-group {
+    margin-top: 20px;
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    background-color: #00c853; /* Bright green for emphasis */
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #009624;
+}
+
+.forgot-password {
+    display: block;
+    margin-top: 10px;
+    color: #90caf9; /* Light blue for links */
+    text-decoration: none;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+/* Error Message */
+#error-message {
+    font-weight: bold;
+    font-size: 1rem;
+}
