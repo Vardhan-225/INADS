@@ -4,8 +4,8 @@ INADS is a robust, real-time network security tool designed to detect and analyz
 
 Key Features
 
-Anomaly Detection Dashboard: Visualize real-time anomalies with detailed metrics and visualizations.
-Log Analysis: Search, filter, and analyze historical logs of network activity and anomalies.
-Secure User Authentication: Access restricted to authorized security professionals using industry-standard security practices.
-Database Integration: Efficient storage and retrieval of anomaly and log data for analysis and reporting.
-Scalable Design: Built to integrate with live GNS3 network simulators and support enterprise-level traffic analysis.
+1. Anomaly Detection Dashboard: Visualize real-time anomalies with detailed metrics and visualizations.
+2. Log Analysis: Search, filter, and analyze historical logs of network activity and anomalies.
+3. Secure User Authentication: Access restricted to authorized security professionals using industry-standard security practices.
+4. Database Integration: Efficient storage and retrieval of anomaly and log data for analysis and reporting.
+5. Scalable Design: Built to integrate with live GNS3 network simulators and support enterprise-level traffic analysis.
