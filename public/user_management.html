@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <title>User Management - INADS</title>
+    <style>
+        body {
+            background-color: #0f0f0f; /* Very dark background for a professional security feel */
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden; /* Prevents horizontal overflow */
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: #1a1a1a; /* Darker navbar for distinct contrast */
+            padding: 15px 20px; /* Increased padding to provide more height to the navbar */
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000; /* Ensures navbar stays on top */
+            display: flex;
+            align-items: center;
+            height: 70px; /* Fixed height for consistency */
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .hamburger {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #e0e0e0;
+            margin-right: 20px;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 70px; /* Set position below the navbar */
+            left: -250px; /* Hide off screen initially */
+            width: 250px;
+            height: calc(100% - 70px); /* Adjust height to ensure it fits below the navbar */
+            background-color: #1a1a1a;
+            padding: 20px 0;
+            z-index: 900; /* Lower than navbar to avoid overlapping */
+            transition: left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Smooth transition */
+        }
+
+        .sidebar.open {
+            left: 0; /* Show sidebar when open */
+        }
+
+        .sidebar .list-group-item {
+            background-color: #1a1a1a;
+            color: #b0b0b0;
+            text-align: center;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar .list-group-item:hover {
+            background-color: #333;
+            color: #ffffff;
+        }
+
+        .sidebar .list-group-item.active {
+            background-color: #00c853;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        /* Logout Button in Sidebar */
+        .logout-btn-sidebar {
+            background-color: #444; /* Gray by default */
+            border: none;
+            color: #e0e0e0;
+            width: calc(100% - 40px);
+            margin: 20px auto;
+            padding: 10px 15px;
+            border-radius: 5px;
+            display: block;
+            transition: background-color 0.3s ease;
+        }
+
+        .logout-btn-sidebar:hover {
+            background-color: #ff3b30; /* Red on hover */
+            color: #ffffff;
+        }
+
+        /* Main Content Styles */
+        .container.main-content {
+            margin-top: 400px; /* Set margin to clear the navbar */
+            margin-bottom: 60px; /* Extra margin to ensure nothing is cut off */
+            width: 90%;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-bottom: 40px; /* Adding extra padding at the bottom for better visibility */
+            transition: margin-left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1), width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .container.main-content.sidebar-open {
+            margin-left: 260px; /* Keep the margin consistent when the sidebar is open */
+            width: calc(100% - 260px); /* Adjust width accordingly to avoid overlapping with the sidebar */
+        }
+
+        /* User Creation and Management Table */
+        .form-container {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+        }
+
+        .form-container input,
+        .form-container select {
+            background-color: #333;
+            color: #e0e0e0;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .form-container button {
+            background-color: #00c853;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        .form-container button:hover {
+            background-color: #009624;
+        }
+
+        .user-table {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .user-table th, .user-table td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        .user-table th {
+            background-color: #333;
+            color: #ffffff;
+        }
+
+        .user-table td {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .edit-btn, .delete-btn {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #00c853;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            background-color: #333;
+            color: #00c853;
+        }
+
+        .delete-btn:hover {
+            background-color: #ff3b30;
+            color: #ffffff;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background-color: #1e1e1e;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            border-radius: 10px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
+        <a class="navbar-brand" href="#"><i class="fas fa-user-shield"></i> User Management - INADS</a>
+    </nav>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="list-group">
+            <a href="/admin-dashboard" class="list-group-item list-group-item-action">Dashboard</a>
+            <a href="/user-management" class="list-group-item list-group-item-action active">User Management</a>
+            <a href="#" class="list-group-item list-group-item-action">Logs</a>
+            <a href="#" class="list-group-item list-group-item-action">Settings</a>
+        </div>
+        <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container main-content">
+        <!-- Add New User Section -->
+        <div class="form-container">
+            <h3 class="text-light">Add New User</h3>
+            <form id="add-user-form" action="/api/admin/add-user" method="POST">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+
+                <label for="role">Role:</label>
+                <select id="role" name="role" required>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                </select>
+
+                <button type="submit">Create User</button>
+            </form>
+        </div>
+
+        <!-- User List Table -->
+        <div>
+            <h3 class="text-light">Manage Users</h3>
+            <table class="table user-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="user-list">
+                    <!-- User rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal" style="display:none;">
+        <div class="modal-content form-container">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h3>Edit User</h3>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-username" name="username">
+
+                <label for="edit-password">Password:</label>
+                <input type="password" id="edit-password" name="password">
+
+                <label for="edit-role">Role:</label>
+                <select id="edit-role" name="role" required>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                </select>
+
+                <button type="submit">Update User</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript for Sidebar and Modal -->
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            const mainContent = document.querySelector(".main-content");
+            sidebar.classList.toggle("open");
+            mainContent.classList.toggle("sidebar-open");
+        }
+
+        function logoutRedirect() {
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 500);
+        }
+
+        // Open Edit User Modal
+        function editUser(username, role) {
+            const modal = document.getElementById('editUserModal');
+            modal.style.display = 'block';
+
+            // Set the hidden username input value
+            document.getElementById('edit-username').value = username;
+            document.getElementById('edit-role').value = role;
+        }
+
+        // Close Edit User Modal
+        function closeEditModal() {
+            const modal = document.getElementById('editUserModal');
+            modal.style.display = 'none';
+        }
+
+        // Fetch Users
+        async function fetchUsers() {
+            try {
+                const response = await fetch('/api/admin/get-users');
+                const users = await response.json();
+
+                const userList = document.getElementById('user-list');
+                userList.innerHTML = '';
+                users.forEach(user => {
+                    userList.innerHTML += `
+                        <tr>
+                            <td>${user.username}</td>
+                            <td>${user.role}</td>
+                            <td>
+                                <button class="edit-btn" onclick="editUser('${user.username}', '${user.role}')">Edit</button>
+                                <button class="delete-btn" onclick="deleteUser('${user.username}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        }
+
+        // Add User Form Submission
+        document.getElementById("add-user-form").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            const role = document.getElementById("role").value;
+
+            try {
+                const response = await fetch('/api/admin/add-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`
+                });
+
+                if (response.ok) {
+                    alert('User created successfully!');
+                    fetchUsers();
+                } else {
+                    alert('Failed to create user.');
+                }
+            } catch (error) {
+                console.error('Error creating user:', error);
+                alert('An error occurred. Please try again later.');
+            }
+        });
+
+        // Edit User Form Submission
+        document.getElementById("edit-user-form").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById("edit-username").value;
+            const password = document.getElementById("edit-password").value;
+            const role = document.getElementById("edit-role").value;
+
+            try {
+                const response = await fetch('/api/admin/edit-user', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`
+                });
+
+                if (response.ok) {
+                    alert('User updated successfully!');
+                    closeEditModal();
+                    fetchUsers();
+                } else {
+                    alert('Failed to update user.');
+                }
+            } catch (error) {
+                console.error('Error updating user:', error);
+                alert('An error occurred. Please try again later.');
+            }
+        });
+
+        // Delete User Functionality
+        async function deleteUser(username) {
+            if (confirm(`Are you sure you want to delete user ${username}?`)) {
+                try {
+                    const response = await fetch(`/api/admin/delete-user/${username}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        alert('User deleted successfully!');
+                        fetchUsers();
+                    } else {
+                        alert('Failed to delete user.');
+                    }
+                } catch (error) {
+                    console.error('Error deleting user:', error);
+                    alert('An error occurred. Please try again later.');
+                }
+            }
+        }
+
+        // Load Users when page loads
+        fetchUsers();
+    </script>
+</body>
+</html>

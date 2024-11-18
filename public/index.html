@@ -140,7 +140,7 @@
     <div class="login-container">
         <form id="login-form" action="/api/auth/login" method="POST">
             <div class="form-header">
-                <h2>INADS<i class="fas fa-shield-alt"> </i></h2>
+                <h2>INADS <i class="fas fa-shield-alt"></i></h2>
             </div>
             <div id="error-message">
                 Invalid credentials. Please try again.
@@ -167,17 +167,14 @@
     </div>
     
     <script>
-        document.getElementById("login-form").addEventListener("submit", function (event) {
-            event.preventDefault(); // Prevent form from submitting for demo purposes
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
-
-            if (username === 'admin' && password === 'password123') {
-                window.location.href = '/dashboard'; // Redirect if correct
-            } else {
-                document.getElementById("error-message").style.display = 'block'; // Show error message if incorrect
-            }
-        });
+        // Show error message if redirected with an error query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            const errorMessage = urlParams.get('error');
+            const errorDiv = document.getElementById("error-message");
+            errorDiv.textContent = errorMessage;
+            errorDiv.style.display = 'block';
+        }
     </script>
 </body>
 </html>
