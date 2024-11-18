@@ -37,7 +37,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
 
     try {
-        // Fetch user data from the database
+        // Fetch user data from the Database
         const [rows] = await db.execute('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
         if (rows.length > 0) {
             const user = rows[0];
