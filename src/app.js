@@ -7,7 +7,7 @@ const mysql = require('mysql2/promise'); // Import mysql2 library
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MySQL Database Connection
+// MySQL Database Connection to localhost
 const db = mysql.createPool({
     host: 'localhost',
     user: 'root',
