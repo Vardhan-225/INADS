@@ -195,11 +195,13 @@ app.get('/test-db', async (req, res) => {
     }
 });
 
+
 // Cache Control
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     next();
 });
+
 
 // Start the server
 app.listen(PORT, () => {
