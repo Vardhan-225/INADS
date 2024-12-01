@@ -19,6 +19,11 @@ const db = mysql.createPool({
 app.use(bodyParser.urlencoded({ extended: false })); // Parse form data
 app.use(express.static(path.join(__dirname, '../public'))); // Serve static files
 
+// Middleware to handle both URL-encoded and JSON data
+app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded form data
+app.use(bodyParser.json()); // Parse JSON data
+
+
 // Session Middleware
 app.use(session({
     secret: 'secret-key',
@@ -117,21 +122,27 @@ app.get('/api/admin/get-users', async (req, res) => {
 });
 
 // Delete user (Admin use only)
-app.delete('/api/admin/delete-user', async (req, res) => {
-    const { username } = req.query;
+app.delete('/api/admin/delete-user/:username', async (req, res) => {
+    const { username } = req.params;
 
     if (req.session.user && req.session.role === 'admin') {
         try {
-            await db.execute('DELETE FROM users WHERE username = ?', [username]);
-            res.status(200).send('User deleted successfully!');
+            const [result] = await db.execute('DELETE FROM users WHERE username = ?', [username]);
+            
+            if (result.affectedRows > 0) {
+                res.status(200).send('User deleted successfully!');
+            } else {
+                res.status(404).send('User not found');
+            }
         } catch (error) {
             console.error('Error deleting user:', error);
             res.status(500).send('Error deleting user');
         }
     } else {
-        res.redirect('/');
+        res.status(403).send('Forbidden: Unauthorized user');
     }
 });
+
 
 // Handle user registration (Admin use only)
 app.post('/api/admin/add-user', async (req, res) => {
@@ -181,6 +192,214 @@ app.get('/logout', (req, res) => {
         });
     } else {
         res.redirect('/');
+    }
+});
+
+// Handle forgot password form submission
+app.post('/forgot-password', async (req, res) => {
+    const { username } = req.body;
+
+    try {
+        // Check if the user exists in the database
+        const [rows] = await db.execute('SELECT * FROM users WHERE username = ?', [username]);
+
+        if (rows.length > 0) {
+            // If the user exists, redirect to the reset password page
+            res.redirect(`/reset-password/${username}`);
+        } else {
+            // If user does not exist, re-render the forgot password page with an error message
+            res.send(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+                    <link rel="stylesheet" href="style.css">
+                    <title>Forgot Password</title>
+                    <style>
+                        body {
+                            background-color: #0f0f0f;
+                            color: #e0e0e0;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            font-family: Arial, sans-serif;
+                        }
+                        .card {
+                            background-color: #1e1e1e;
+                            border-radius: 10px;
+                            padding: 30px;
+                            width: 100%;
+                            max-width: 400px;
+                        }
+                        .btn-primary {
+                            background-color: #00c853;
+                            border: none;
+                        }
+                        .btn-primary:hover {
+                            background-color: #009624;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <h3 class="text-center"><i class="fas fa-unlock-alt"></i> Forgot Password</h3>
+                        
+                        <!-- Error message alert -->
+                        <div class="alert alert-danger" role="alert">
+                            User not found. Please try again.
+                        </div>
+
+                        <form action="/forgot-password" method="POST">
+                            <div class="form-group">
+                                <label for="username">Enter your Username:</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Submit</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+    } catch (error) {
+        console.error('Error handling forgot password:', error);
+        res.status(500).send('Internal server error');
+    }
+});
+
+// Serve the reset password form and handle reset submission in one consistent route
+app.get('/reset-password/:username', (req, res) => {
+    const username = req.params.username;
+
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+            <title>Reset Password</title>
+            <style>
+                body {
+                    background-color: #0f0f0f;
+                    color: #e0e0e0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    font-family: Arial, sans-serif;
+                }
+
+                .card {
+                    background-color: #1e1e1e;
+                    border-radius: 10px;
+                    padding: 30px;
+                    width: 100%;
+                    max-width: 400px;
+                }
+
+                .btn-primary {
+                    background-color: #00c853;
+                    border: none;
+                }
+
+                .btn-primary:hover {
+                    background-color: #009624;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h3 class="text-center"><i class="fas fa-key"></i> Reset Password</h3>
+                <form action="/reset-password/${username}" method="POST">
+                    <div class="form-group">
+                        <label for="password">Enter your New Password:</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
+                </form>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+// Handle reset password form submission
+app.post('/reset-password/:username', async (req, res) => {
+    const { username } = req.params;
+    const { password } = req.body;
+
+    try {
+        // Update the user's password in the database
+        await db.execute('UPDATE users SET password = ? WHERE username = ?', [password, username]);
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+                <title>Password Reset Success</title>
+            </head>
+            <body style="background-color: #0f0f0f; color: #e0e0e0; text-align: center; padding-top: 100px; font-family: Arial, sans-serif;">
+                <h2>Password has been reset successfully!</h2>
+                <p>You can now <a href="/" style="color: #00c853;">log in</a> with your new password.</p>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).send('Error resetting password');
+    }
+});
+
+
+
+// Serve the forgot password form
+app.get('/forgot-password', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/forgot_password.html')); // Corrected path
+});
+
+// Serve the reset password form
+app.get('/reset-password/:username', (req, res) => {
+    const username = req.params.username;
+
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Reset Password</title>
+        </head>
+        <body>
+            <h2>Reset Password</h2>
+            <form action="/reset-password" method="POST">
+                <input type="hidden" name="username" value="${username}" />
+                <label for="password">Enter new password:</label>
+                <input type="password" id="password" name="password" required>
+                <button type="submit">Reset Password</button>
+            </form>
+        </body>
+        </html>
+    `);
+});
+
+// Handle reset password form submission
+app.post('/reset-password', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        // Update the user's password in the database
+        await db.execute('UPDATE users SET password = ? WHERE username = ?', [password, username]);
+        res.send('Password has been reset successfully. You can now log in with your new password.');
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).send('Error resetting password');
     }
 });
 
