@@ -9,3 +9,5 @@ Key Features
 3. Secure User Authentication: Access restricted to authorized security professionals using industry-standard security practices.
 4. Database Integration: Efficient storage and retrieval of anomaly and log data for analysis and reporting.
 5. Scalable Design: Built to integrate with live GNS3 network simulators and support enterprise-level traffic analysis.
+
+
