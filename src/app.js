@@ -76,7 +76,6 @@ app.use(session({
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
-
 /**
  * User Login
  * POST /api/auth/login
