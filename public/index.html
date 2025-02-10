@@ -1,180 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <title>Login - INADS</title>
-    <style>
-        body {
-            background-color: #0f0f0f; /* Dark background for security feel */
-            color: #e0e0e0;
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        .login-container {
-            background-color: #1e1e1e; /* Card-like dark background */
-            border-radius: 15px;
-            padding: 40px 30px;
-            width: 350px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
-            position: relative;
-            animation: pulseGlow 3s infinite ease-in-out; /* Add pulse animation for ambient light */
-        }
-
-        @keyframes pulseGlow {
-            0% {
-                box-shadow: 0 0 20px 5px rgba(255, 0, 0, 0.4);
-            }
-            50% {
-                box-shadow: 0 0 30px 10px rgba(255, 0, 0, 0.6);
-            }
-            100% {
-                box-shadow: 0 0 20px 5px rgba(255, 0, 0, 0.4);
-            }
-        }
-
-        .form-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .form-header h2 {
-            margin: 0;
-            font-size: 1.8rem;
-            color: #00c853;
-        }
-
-        .form-header i {
-            color: #00c853;
-            margin-left: 10px;
-        }
-
-        #error-message {
-            display: none;
-            color: #ff3b30;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .input-group {
-            margin-bottom: 25px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #b0b0b0;
-        }
-
-        .input-icon {
-            position: relative;
-            width: 100%;
-        }
-
-        .input-icon i {
-            position: absolute;
-            top: 50%;
-            left: 10px;
-            transform: translateY(-50%);
-            color: #b0b0b0;
-            font-size: 1.2rem; /* Increase size for better alignment */
-        }
-
-        .input-icon input {
-            width: 100%;
-            padding: 10px 10px 10px 40px; /* Increase padding-left to ensure icon does not overlap */
-            border: none;
-            border-radius: 8px;
-            background-color: #333;
-            color: #e0e0e0;
-            box-sizing: border-box; /* Include padding in width calculation */
-        }
-
-        .input-icon input:focus {
-            outline: none;
-            background-color: #444;
-        }
-
-        .action-group {
-            text-align: center;
-            margin-top: 30px;
-        }
-
-        #login-btn {
-            background-color: #00c853;
-            color: #ffffff;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            width: 100%;
-        }
-
-        #login-btn:hover {
-            background-color: #009624;
-        }
-
-        .forgot-password {
-            display: block;
-            margin-top: 15px;
-            color: #b0b0b0;
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-
-        .forgot-password:hover {
-            color: #ffffff;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - INADS</title>
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Global box-sizing reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    /* Full-screen background */
+    body {
+      background-color: #0f0f0f;
+      color: #e0e0e0;
+      font-family: 'Roboto', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    /* Login Card Styling */
+    .login-container {
+      background: linear-gradient(145deg, #1e1e1e, #2a2e38);
+      border-radius: 15px;
+      padding: 40px 30px;
+      width: 350px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.7);
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 20px 5px rgba(200, 0, 10, 0.3); }
+      50% { box-shadow: 0 0 30px 10px rgba(0,200,83,0.6); }
+      100% { box-shadow: 0 0 20px 5px rgba(0,200,83,0.3); }
+    }
+    .form-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .form-header h2 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: #00c853;
+    }
+    .form-header i {
+      color: #00c853;
+      margin-left: 10px;
+    }
+    #error-message {
+      display: none;
+      color: #ff3b30;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .input-group {
+      margin-bottom: 25px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #b0b0b0;
+    }
+    .input-icon {
+      position: relative;
+      width: 100%;
+    }
+    .input-icon i {
+      position: absolute;
+      top: 50%;
+      left: 10px;
+      transform: translateY(-50%);
+      color: #b0b0b0;
+      font-size: 1.2rem;
+    }
+    .input-icon input {
+      width: 100%;
+      padding: 10px 10px 10px 40px;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: #e0e0e0;
+    }
+    .input-icon input:focus {
+      outline: none;
+      background-color: #444;
+    }
+    .action-group {
+      text-align: center;
+      margin-top: 30px;
+    }
+    #login-btn {
+      background-color: #00c853;
+      color: #ffffff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.3s ease;
+    }
+    #login-btn:hover {
+      background-color: #009624;
+    }
+    .forgot-password {
+      display: block;
+      margin-top: 15px;
+      color: #b0b0b0;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    .forgot-password:hover {
+      color: #ffffff;
+    }
+  </style>
 </head>
 <body>
-    <div class="login-container">
-        <form id="login-form" action="/api/auth/login" method="POST">
-            <div class="form-header">
-                <h2>INADS <i class="fas fa-shield-alt"></i></h2>
-            </div>
-            <div id="error-message">
-                Invalid credentials. Please try again.
-            </div>
-            <div class="input-group">
-                <label for="username">Username</label>
-                <div class="input-icon">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="username" name="username" placeholder="Enter your username" required>
-                </div>
-            </div>
-            <div class="input-group">
-                <label for="password">Password</label>
-                <div class="input-icon">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                </div>
-            </div>
-            <div class="action-group">
-                <button type="submit" id="login-btn">Login</button>
-                <a href="/forgot-password" class="forgot-password">Forgot Password?</a>
-            </div>
-        </form>
-    </div>
-    
-    <script>
-        // Show error message if redirected with an error query parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('error')) {
-            const errorMessage = urlParams.get('error');
-            const errorDiv = document.getElementById("error-message");
-            errorDiv.textContent = errorMessage;
-            errorDiv.style.display = 'block';
+  <div class="login-container">
+    <form id="login-form" action="/api/auth/login" method="POST">
+      <div class="form-header">
+        <h2>INADS <i class="fas fa-shield-alt"></i></h2>
+      </div>
+      <div id="error-message">Invalid credentials. Please try again.</div>
+      <div class="input-group">
+        <label for="email">Email</label>
+        <div class="input-icon">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="email" name="email" placeholder="Enter your email" required>
+        </div>
+      </div>
+      <div class="input-group">
+        <label for="password">Password</label>
+        <div class="input-icon">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" name="password" placeholder="Enter your password" required>
+        </div>
+      </div>
+      <div class="action-group">
+        <button type="submit" id="login-btn">Login</button>
+        <a href="/forgot-password" class="forgot-password">Forgot Password?</a>
+      </div>
+    </form>
+  </div>
+  
+  <script>
+    // Show error message if redirected with an error query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error')) {
+      const errorMessage = urlParams.get('error');
+      const errorDiv = document.getElementById("error-message");
+      errorDiv.textContent = errorMessage;
+      errorDiv.style.display = 'block';
+    }
+    // Handle login form submission using AJAX (fetch)
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          document.getElementById("error-message").textContent = data.message || "Invalid email or password";
+          document.getElementById("error-message").style.display = "block";
         }
-    </script>
+      } catch (error) {
+        console.error("Login error:", error);
+        document.getElementById("error-message").textContent = "An error occurred. Please try again.";
+        document.getElementById("error-message").style.display = "block";
+      }
+    });
+  </script>    
 </body>
 </html>

@@ -1,446 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <title>User Management - INADS</title>
-    <style>
-        body {
-            background-color: #0f0f0f; /* Very dark background for a professional security feel */
-            color: #e0e0e0;
-            font-family: Arial, sans-serif;
-            overflow-x: hidden; /* Prevents horizontal overflow */
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management - INADS</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Global box-sizing for consistent layout */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
 
-        /* Navbar */
-        .navbar {
-            background-color: #1a1a1a; /* Darker navbar for distinct contrast */
-            padding: 15px 20px; /* Increased padding to provide more height to the navbar */
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 1000; /* Ensures navbar stays on top */
-            display: flex;
-            align-items: center;
-            height: 70px; /* Fixed height for consistency */
-        }
+    /* Main Content Wrapper (matches Admin Dashboard) */
+    .main-content-wrapper {
+      padding-top: 90px; /* Clears the fixed navbar */
+      margin: 0 auto;
+      width: 90%;
+      max-width: 1200px;
+      transition: margin-left 0.5s, width 0.5s;
+    }
+    .main-content-wrapper.sidebar-open {
+      margin-left: 300px; /* Same as sidebar width */
+      width: calc(100% - 300px);
+    }
 
-        .navbar-brand {
-            font-weight: bold;
-            flex: 1;
-        }
+    /* Enhanced Sidebar (same as admin_dashboard) */
+    .sidebar {
+      position: fixed;
+      top: 70px; /* Below the navbar */
+      left: -300px; /* Hidden off-canvas */
+      width: 300px;
+      height: calc(100% - 70px);
+      background: linear-gradient(135deg, #1a1a1a, #0d0f13);
+      padding: 30px 0;
+      z-index: 900;
+      transition: left 0.5s ease, box-shadow 0.5s ease;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+    .sidebar.open {
+      left: 0;
+    }
+    .sidebar .list-group-item {
+      background: transparent;
+      color: #b0b0b0;
+      font-size: 1.1rem;
+      padding: 15px 20px;
+      transition: background 0.3s, color 0.3s;
+      display: flex;
+      align-items: center;
+      border-left: 3px solid transparent;
+    }
+    .sidebar .list-group-item i {
+      margin-right: 10px;
+      font-size: 1.2rem;
+    }
+    .sidebar .list-group-item:hover {
+      background: rgba(0,200,83,0.1);
+      color: #00c853;
+      border-left: 3px solid #00c853;
+    }
+    .sidebar .list-group-item.active {
+      background: #00c853;
+      color: #fff;
+      font-weight: bold;
+      border-left: 3px solid #00c853;
+    }
+    .logout-btn-sidebar {
+      background-color: #c80000;
+      border: none;
+      color: #fff;
+      width: calc(100% - 60px);
+      margin: 30px auto 0;
+      padding: 10px;
+      border-radius: 30px;
+      display: block;
+      transition: background-color 0.3s ease;
+      font-weight: bold;
+    }
+    .logout-btn-sidebar:hover {
+      background-color: #960000;
+    }
 
-        .hamburger {
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #e0e0e0;
-            margin-right: 20px;
-        }
+    /* Navbar adjustments for consistency */
+    .navbar-brand {
+      color: #00c853 !important;
+      margin-left: 20px; /* Extra spacing between hamburger and brand */
+      font-weight: bold;
+    }
 
-        /* Sidebar Styles */
-        .sidebar {
-            position: fixed;
-            top: 70px; /* Set position below the navbar */
-            left: -250px; /* Hide off screen initially */
-            width: 250px;
-            height: calc(100% - 70px); /* Adjust height to ensure it fits below the navbar */
-            background-color: #1a1a1a;
-            padding: 20px 0;
-            z-index: 900; /* Lower than navbar to avoid overlapping */
-            transition: left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Smooth transition */
-        }
+    /* Card Container for "Add New User" */
+    .card-container {
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+    }
+    .card-container h3 {
+      margin-bottom: 20px;
+      color: #00c853;
+    }
+    .card-container label {
+      font-weight: bold;
+      color: #b0b0b0;
+    }
+    .card-container input,
+    .card-container select {
+      background-color: #333;
+      color: #e0e0e0;
+      border: none;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+    .card-container button {
+      background-color: #00c853;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 5px;
+      width: 100%;
+      transition: background-color 0.3s;
+    }
+    .card-container button:hover {
+      background-color: #009624;
+    }
 
-        .sidebar.open {
-            left: 0; /* Show sidebar when open */
-        }
+    /* Table Card for User List */
+    .table-card {
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+      margin-bottom: 30px;
+    }
+    .table-card h3 {
+      margin-bottom: 20px;
+      color: #00c853;
+    }
+    .search-bar {
+      margin-bottom: 15px;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 5px;
+      border: none;
+      background-color: #333;
+      color: #e0e0e0;
+    }
+    .user-table {
+      width: 100%;
+      margin-bottom: 0;
+    }
+    .user-table th, .user-table td {
+      padding: 12px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .user-table th {
+      background-color: #333;
+      color: #fff;
+    }
+    .user-table td {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+    .action-btn {
+      background-color: #1e1e1e;
+      color: #fff;
+      border: 1px solid #00c853;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s;
+      margin: 0 2px;
+    }
+    .action-btn:hover {
+      background-color: #333;
+      color: #00c853;
+    }
 
-        .sidebar .list-group-item {
-            background-color: #1a1a1a;
-            color: #b0b0b0;
-            text-align: center;
-            border: none;
-            transition: all 0.3s ease;
-        }
-
-        .sidebar .list-group-item:hover {
-            background-color: #333;
-            color: #ffffff;
-        }
-
-        .sidebar .list-group-item.active {
-            background-color: #00c853;
-            color: #ffffff;
-            font-weight: bold;
-        }
-
-        /* Logout Button in Sidebar */
-        .logout-btn-sidebar {
-            background-color: #444; /* Gray by default */
-            border: none;
-            color: #e0e0e0;
-            width: calc(100% - 40px);
-            margin: 20px auto;
-            padding: 10px 15px;
-            border-radius: 5px;
-            display: block;
-            transition: background-color 0.3s ease;
-        }
-
-        .logout-btn-sidebar:hover {
-            background-color: #ff3b30; /* Red on hover */
-            color: #ffffff;
-        }
-
-        /* Main Content Styles */
-        .container.main-content {
-            margin-top: 400px; /* Set margin to clear the navbar */
-            margin-bottom: 60px; /* Extra margin to ensure nothing is cut off */
-            width: 90%;
-            max-width: 1200px;
-            margin-left: auto;
-            margin-right: auto;
-            padding-bottom: 40px; /* Adding extra padding at the bottom for better visibility */
-            transition: margin-left 0.5s cubic-bezier(0.25, 0.1, 0.25, 1), width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-        }
-
-        .container.main-content.sidebar-open {
-            margin-left: 260px; /* Keep the margin consistent when the sidebar is open */
-            width: calc(100% - 260px); /* Adjust width accordingly to avoid overlapping with the sidebar */
-        }
-
-        /* User Creation and Management Table */
-        .form-container {
-            background-color: #1e1e1e;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
-        }
-
-        .form-container input,
-        .form-container select {
-            background-color: #333;
-            color: #e0e0e0;
-            border: none;
-            border-radius: 5px;
-            padding: 10px;
-            width: 100%;
-            margin-bottom: 15px;
-        }
-
-        .form-container button {
-            background-color: #00c853;
-            color: #ffffff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            width: 100%;
-        }
-
-        .form-container button:hover {
-            background-color: #009624;
-        }
-
-        .user-table {
-            width: 100%;
-            margin-bottom: 30px;
-        }
-
-        .user-table th, .user-table td {
-            padding: 10px;
-            text-align: center;
-        }
-
-        .user-table th {
-            background-color: #333;
-            color: #ffffff;
-        }
-
-        .user-table td {
-            background-color: #1e1e1e;
-            color: #e0e0e0;
-        }
-
-        .edit-btn, .delete-btn {
-            background-color: #1e1e1e;
-            color: #ffffff;
-            border: 1px solid #00c853;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .edit-btn:hover {
-            background-color: #333;
-            color: #00c853;
-        }
-
-        .delete-btn:hover {
-            background-color: #ff3b30;
-            color: #ffffff;
-        }
-
-        /* Modal Styles */
-        .modal {
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.8);
-        }
-
-        .modal-content {
-            background-color: #1e1e1e;
-            margin: 10% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 50%;
-            border-radius: 10px;
-        }
-
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: #fff;
-            text-decoration: none;
-            cursor: pointer;
-        }
-    </style>
+    /* Modal Styles for Editing User */
+    .modal {
+      position: fixed;
+      z-index: 1001;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #1e1e1e;
+      padding: 25px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      position: relative;
+    }
+    .modal-content h3 {
+      color: #00c853;
+      margin-bottom: 20px;
+    }
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover,
+    .close:focus {
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-        <a class="navbar-brand" href="#"><i class="fas fa-user-shield"></i> User Management - INADS</a>
-    </nav>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
+    <a class="navbar-brand" href="#">
+      <i class="fas fa-user-shield"></i> User Management - INADS
+    </a>
+  </nav>
 
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="list-group">
-            <a href="/admin-dashboard" class="list-group-item list-group-item-action">Dashboard</a>
-            <a href="/user-management" class="list-group-item list-group-item-action active">User Management</a>
-            <a href="#" class="list-group-item list-group-item-action">Logs</a>
-            <a href="#" class="list-group-item list-group-item-action">Settings</a>
-        </div>
-        <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
+  <!-- Enhanced Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="list-group">
+      <a href="/admin-dashboard" class="list-group-item list-group-item-action">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      <a href="#" class="list-group-item list-group-item-action">
+        <i class="fas fa-file-alt"></i> Logs
+      </a>
+      <a href="#" class="list-group-item list-group-item-action">
+        <i class="fas fa-chart-line"></i> Anomalies
+      </a>
+    </a>
+    <a href="/user-management" class="list-group-item list-group-item-action active">
+      <i class="fas fa-users"></i> User Management
+    </a>
+      <a href="#" class="list-group-item list-group-item-action">
+        <i class="fas fa-cogs"></i> Settings
+      </a>
+    </div>
+    <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
+  </div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content-wrapper" id="main-content">
+    <!-- Add New User Card -->
+    <div class="card-container">
+      <h3>Add New User</h3>
+      <form id="add-user-form" action="/api/admin/add-user" method="POST">
+        <label for="email">Email:</label>
+        <input type="text" id="email" name="email" placeholder="user@example.com" required>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" placeholder="Enter password" required>
+        <label for="role">Role:</label>
+        <select id="role" name="role" required>
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button type="submit">Create User</button>
+      </form>
     </div>
 
-    <!-- Main Content -->
-    <div class="container main-content">
-        <!-- Add New User Section -->
-        <div class="form-container">
-            <h3 class="text-light">Add New User</h3>
-            <form id="add-user-form" action="/api/admin/add-user" method="POST">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
-
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-
-                <label for="role">Role:</label>
-                <select id="role" name="role" required>
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                </select>
-
-                <button type="submit">Create User</button>
-            </form>
-        </div>
-
-        <!-- User List Table -->
-        <div>
-            <h3 class="text-light">Manage Users</h3>
-            <table class="table user-table">
-                <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Role</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="user-list">
-                    <!-- User rows will be populated here -->
-                </tbody>
-            </table>
-        </div>
+    <!-- User List Card -->
+    <div class="table-card">
+      <h3>Manage Users</h3>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search by email...">
+      </div>
+      <table class="table user-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th style="min-width: 150px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="user-list">
+          <!-- User rows will be populated here via AJAX -->
+        </tbody>
+      </table>
     </div>
+  </div>
 
-    <!-- Edit User Modal -->
-    <div id="editUserModal" class="modal" style="display:none;">
-        <div class="modal-content form-container">
-            <span class="close" onclick="closeEditModal()">&times;</span>
-            <h3>Edit User</h3>
-            <form id="edit-user-form">
-                <input type="hidden" id="edit-username" name="username">
-
-                <label for="edit-password">Password:</label>
-                <input type="password" id="edit-password" name="password">
-
-                <label for="edit-role">Role:</label>
-                <select id="edit-role" name="role" required>
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                </select>
-
-                <button type="submit">Update User</button>
-            </form>
-        </div>
+  <!-- Edit User Modal -->
+  <div id="editUserModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeEditModal()">&times;</span>
+      <h3>Edit User</h3>
+      <form id="edit-user-form">
+        <!-- Hidden field for email -->
+        <input type="hidden" id="edit-email" name="email">
+        <label for="edit-password">Password (leave blank to keep unchanged):</label>
+        <input type="password" id="edit-password" name="password" placeholder="New password (optional)">
+        <label for="edit-role">Role:</label>
+        <select id="edit-role" name="role" required>
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button type="submit">Update User</button>
+      </form>
     </div>
+  </div>
 
-    <!-- JavaScript for Sidebar and Modal -->
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById("sidebar");
-            const mainContent = document.querySelector(".main-content");
-            sidebar.classList.toggle("open");
-            mainContent.classList.toggle("sidebar-open");
-        }
-
-        function logoutRedirect() {
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 500);
-        }
-
-        // Open Edit User Modal
-        function editUser(username, role) {
-            const modal = document.getElementById('editUserModal');
-            modal.style.display = 'block';
-
-            // Set the hidden username input value
-            document.getElementById('edit-username').value = username;
-            document.getElementById('edit-role').value = role;
-        }
-
-        // Close Edit User Modal
-        function closeEditModal() {
-            const modal = document.getElementById('editUserModal');
-            modal.style.display = 'none';
-        }
-
-        // Fetch Users
-        async function fetchUsers() {
-            try {
-                const response = await fetch('/api/admin/get-users');
-                const users = await response.json();
-
-                const userList = document.getElementById('user-list');
-                userList.innerHTML = '';
-                users.forEach(user => {
-                    userList.innerHTML += `
-                        <tr>
-                            <td>${user.username}</td>
-                            <td>${user.role}</td>
-                            <td>
-                                <button class="edit-btn" onclick="editUser('${user.username}', '${user.role}')">Edit</button>
-                                <button class="delete-btn" onclick="deleteUser('${user.username}')">Delete</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } catch (error) {
-                console.error('Error fetching users:', error);
-            }
-        }
-
-        // Add User Form Submission
-        document.getElementById("add-user-form").addEventListener("submit", async function(event) {
-            event.preventDefault();
-
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
-            const role = document.getElementById("role").value;
-
-            try {
-                const response = await fetch('/api/admin/add-user', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`
-                });
-
-                if (response.ok) {
-                    alert('User created successfully!');
-                    fetchUsers();
-                } else {
-                    alert('Failed to create user.');
-                }
-            } catch (error) {
-                console.error('Error creating user:', error);
-                alert('An error occurred. Please try again later.');
-            }
+  <!-- JavaScript for Sidebar, Modal, and AJAX Operations -->
+  <script>
+    // Toggle the sidebar open/close
+    function toggleSidebar() {
+      const sidebar = document.getElementById("sidebar");
+      const mainContent = document.getElementById("main-content");
+      sidebar.classList.toggle("open");
+      mainContent.classList.toggle("sidebar-open");
+    }
+    // Logout redirect function
+    function logoutRedirect() {
+      setTimeout(() => { window.location.href = '/'; }, 500);
+    }
+    // Open the Edit User Modal and pre-populate with user data
+    function editUser(email, role) {
+      const modal = document.getElementById('editUserModal');
+      modal.style.display = 'flex';
+      document.getElementById('edit-email').value = email;
+      document.getElementById('edit-role').value = role;
+    }
+    // Close the Edit User Modal
+    function closeEditModal() {
+      document.getElementById('editUserModal').style.display = 'none';
+    }
+    // Fetch the user list from the server and render the table
+    async function fetchUsers() {
+      try {
+        const response = await fetch('/api/admin/get-users');
+        const users = await response.json();
+        renderUserTable(users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    }
+    // Render the user table with search filtering
+    function renderUserTable(users) {
+      const searchQuery = document.getElementById('search-input').value.toLowerCase();
+      const filteredUsers = users.filter(user => user.email.toLowerCase().includes(searchQuery));
+      const userList = document.getElementById('user-list');
+      userList.innerHTML = '';
+      filteredUsers.forEach(user => {
+        userList.innerHTML += `
+          <tr>
+            <td>${user.email}</td>
+            <td>${user.role}</td>
+            <td>
+              <button class="action-btn" onclick="editUser('${user.email}', '${user.role}')">Edit</button>
+              <button class="action-btn" onclick="deleteUser('${user.email}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+    // Add event listener for real-time search filtering
+    document.getElementById('search-input').addEventListener('input', () => {
+      fetchUsers();
+    });
+    // Handle Add User form submission
+    document.getElementById("add-user-form").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const role = document.getElementById("role").value;
+      try {
+        const response = await fetch('/api/admin/add-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`
         });
-
-        // Edit User Form Submission
-        document.getElementById("edit-user-form").addEventListener("submit", async function(event) {
-            event.preventDefault();
-
-            const username = document.getElementById("edit-username").value;
-            const password = document.getElementById("edit-password").value;
-            const role = document.getElementById("edit-role").value;
-
-            try {
-                const response = await fetch('/api/admin/edit-user', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`
-                });
-
-                if (response.ok) {
-                    alert('User updated successfully!');
-                    closeEditModal();
-                    fetchUsers();
-                } else {
-                    alert('Failed to update user.');
-                }
-            } catch (error) {
-                console.error('Error updating user:', error);
-                alert('An error occurred. Please try again later.');
-            }
-        });
-
-        // Delete User Functionality
-        async function deleteUser(username) {
-            if (confirm(`Are you sure you want to delete user ${username}?`)) {
-                try {
-                    const response = await fetch(`/api/admin/delete-user/${username}`, {
-                        method: 'DELETE'
-                    });
-
-                    if (response.ok) {
-                        alert('User deleted successfully!');
-                        fetchUsers();
-                    } else {
-                        alert('Failed to delete user.');
-                    }
-                } catch (error) {
-                    console.error('Error deleting user:', error);
-                    alert('An error occurred. Please try again later.');
-                }
-            }
+        if (response.ok) {
+          alert('User created successfully!');
+          document.getElementById("add-user-form").reset();
+          fetchUsers();
+        } else {
+          alert('Failed to create user.');
         }
-
-        // Load Users when page loads
-        fetchUsers();
-    </script>
+      } catch (error) {
+        console.error('Error creating user:', error);
+        alert('An error occurred. Please try again later.');
+      }
+    });
+    // Handle Edit User form submission
+    document.getElementById("edit-user-form").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      const email = document.getElementById("edit-email").value;
+      const password = document.getElementById("edit-password").value;
+      const role = document.getElementById("edit-role").value;
+      try {
+        const response = await fetch('/api/admin/edit-user', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`
+        });
+        if (response.ok) {
+          alert('User updated successfully!');
+          closeEditModal();
+          fetchUsers();
+        } else {
+          alert('Failed to update user.');
+        }
+      } catch (error) {
+        console.error('Error updating user:', error);
+        alert('An error occurred. Please try again later.');
+      }
+    });
+    // Delete User functionality
+    async function deleteUser(email) {
+      if (confirm(`Are you sure you want to delete user ${email}?`)) {
+        try {
+          const response = await fetch(`/api/admin/delete-user/${email}`, { method: 'DELETE' });
+          if (response.ok) {
+            alert('User deleted successfully!');
+            fetchUsers();
+          } else {
+            alert('Failed to delete user.');
+          }
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          alert('An error occurred. Please try again later.');
+        }
+      }
+    }
+    // Load users when the page loads
+    fetchUsers();
+  </script>
 </body>
 </html>

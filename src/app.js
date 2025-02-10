@@ -1,281 +1,308 @@
+/**
+ * Main Server File
+ * 
+ * This Express server handles user authentication (login, logout), 
+ * user management (admin-only CRUD operations), and password resets.
+ * 
+ * Note: This code uses email as the unique identifier for users.
+ */
+
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const mysql = require('mysql2/promise'); // Import mysql2 library
+const mysql = require('mysql2/promise'); // Using the promise API for MySQL
+const bcrypt = require('bcryptjs');
+
+// Use an absolute path for the .env file
+require('dotenv').config({ path: "C:/Users/S569652/Documents/INADS/Website/INADS/.env" });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MySQL Database Connection to localhost
+// Create a MySQL connection pool using environment variables (or defaults)
 const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: 'Catsanddogs#666', // Replace with your MySQL root password
-    database: 'INADS' // Replace with your database name
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASS || '',
+    database: process.env.DB_NAME || 'INADS'
 });
 
-// Middleware
-app.use(bodyParser.urlencoded({ extended: false })); // Parse form data
-app.use(express.static(path.join(__dirname, '../public'))); // Serve static files
+// Immediately check if the database connection works
+(async () => {
+    try {
+        await db.getConnection();
+        console.log("Successfully connected to the database.");
+    } catch (error) {
+        console.error("Database connection failed:", error.message);
+        process.exit(1); // Exit the process if unable to connect
+    }
+})();
 
-// Middleware to handle both URL-encoded and JSON data
-app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded form data
-app.use(bodyParser.json()); // Parse JSON data
+// ---------------------
+// Global Middleware
+// ---------------------
 
+// Cache Control Middleware: Prevent caching on all dynamic responses
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+});
 
-// Session Middleware
+// Serve static files from the "public" folder (e.g., HTML, CSS, client JS)
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Parse URL-encoded form data and JSON bodies
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+// Session Middleware configuration
 app.use(session({
-    secret: 'secret-key',
+    secret: process.env.SESSION_SECRET || 'secret-key', // Use an env variable in production
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false }
+    saveUninitialized: false,
+    cookie: {
+        secure: false,  // Set to true when using HTTPS
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 1 // Session expires after 1 hour
+    }
 }));
 
-// Root route - Login page
+// ---------------------
+// Routes
+// ---------------------
+
+// Root Route: Render the login page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Handle login form submission
+/**
+ * User Login
+ * POST /api/auth/login
+ * Expects: { email, password } in the request body.
+ * On success, sets session variables and redirects to the appropriate dashboard.
+ */
 app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
     try {
-        // Fetch user data from the Database
-        const [rows] = await db.execute('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
-        if (rows.length > 0) {
-            const user = rows[0];
-            // Store user details in the session
-            req.session.user = username; 
-            req.session.role = user.role; 
-
-            // Route based on user role
-            if (user.role === 'admin') {
-                res.redirect('/admin-dashboard'); // Redirect to admin dashboard for admin users
-            } else {
-                res.redirect('/dashboard'); // Redirect to dashboard for regular users
-            }
-        } else {
-            res.redirect('/?error=Invalid credentials'); // Redirect with error message
+        // Fetch user by email from the database
+        const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+        if (rows.length === 0) {
+            // Respond with a generic message to avoid user enumeration
+            return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
+
+        const user = rows[0];
+
+        // Compare the provided password with the stored hashed password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ success: false, message: "Invalid email or password" });
+        }
+
+        // Set session data for the authenticated user
+        req.session.user = user.email;
+        req.session.role = user.role;
+        await new Promise((resolve) => req.session.save(resolve));
+
+        // Instead of redirecting, send JSON with success and a redirect URL
+        const redirectUrl = user.role === 'admin' ? '/admin-dashboard' : '/dashboard';
+        return res.json({ success: true, redirect: redirectUrl });
     } catch (error) {
-        console.error('Error logging in:', error);
-        res.status(500).send('Internal server error');
+        console.error("Error during login:", error);
+        return res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 });
 
-// Handle user registration (Admin use only)
-app.post('/api/admin/add-user', async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        // Insert new user into the database
-        await db.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, password, 'user']);
-        res.status(201).send('User registered successfully!');
-    } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).send('Error registering user');
-    }
-});
-
-// Dashboard route (for regular users)
+/**
+ * Dashboard Route for Regular Users
+ * GET /dashboard
+ */
 app.get('/dashboard', (req, res) => {
     if (req.session.user && req.session.role === 'user') {
-        res.sendFile(path.join(__dirname, '../public/dashboard.html'));
-    } else {
-        res.redirect('/');
+        return res.sendFile(path.join(__dirname, '../public/dashboard.html'));
     }
+    return res.redirect('/');
 });
 
-// Admin Dashboard route (for admins only)
+/**
+ * Admin Dashboard Route
+ * GET /admin-dashboard
+ */
 app.get('/admin-dashboard', (req, res) => {
     if (req.session.user && req.session.role === 'admin') {
-        res.sendFile(path.join(__dirname, '../public/admin_dashboard.html'));
-    } else {
-        res.redirect('/');
+        return res.sendFile(path.join(__dirname, '../public/admin_dashboard.html'));
     }
+    return res.redirect('/');
 });
 
-// User Management route (for admins only)
+/**
+ * User Management Page (Admin Only)
+ * GET /user-management
+ */
 app.get('/user-management', (req, res) => {
     if (req.session.user && req.session.role === 'admin') {
-        res.sendFile(path.join(__dirname, '../public/user_management.html'));
-    } else {
-        res.redirect('/');
+        return res.sendFile(path.join(__dirname, '../public/user_management.html'));
     }
+    return res.redirect('/');
 });
 
-// Get all users (Admin use only)
+/**
+ * Get All Users (Admin Only)
+ * GET /api/admin/get-users
+ * Returns a JSON array of user objects.
+ */
 app.get('/api/admin/get-users', async (req, res) => {
-    if (req.session.user && req.session.role === 'admin') {
-        try {
-            const [rows] = await db.execute('SELECT username, role FROM users');
-            res.json(rows);
-        } catch (error) {
-            console.error('Error fetching users:', error);
-            res.status(500).send('Error fetching users');
-        }
-    } else {
-        res.redirect('/');
+    if (!req.session.user || req.session.role !== "admin") {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
     }
-});
-
-// Delete user (Admin use only)
-app.delete('/api/admin/delete-user/:username', async (req, res) => {
-    const { username } = req.params;
-
-    if (req.session.user && req.session.role === 'admin') {
-        try {
-            const [result] = await db.execute('DELETE FROM users WHERE username = ?', [username]);
-            
-            if (result.affectedRows > 0) {
-                res.status(200).send('User deleted successfully!');
-            } else {
-                res.status(404).send('User not found');
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            res.status(500).send('Error deleting user');
-        }
-    } else {
-        res.status(403).send('Forbidden: Unauthorized user');
-    }
-});
-
-
-// Handle user registration (Admin use only)
-app.post('/api/admin/add-user', async (req, res) => {
-    const { username, password, role } = req.body;
 
     try {
-        // Insert new user into the database
-        await db.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, password, role]);
-        res.status(201).send('User registered successfully!');
+        const [rows] = await db.execute("SELECT id, email, role FROM users");
+        return res.json(rows);
     } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).send('Error registering user');
+        console.error("Error fetching users:", error);
+        return res.status(500).json({ success: false, message: "Error fetching users" });
     }
 });
 
-// Edit user (Admin use only)
-app.put('/api/admin/edit-user', async (req, res) => {
-    const { username, password, role } = req.body;
+/**
+ * Delete a User (Admin Only)
+ * DELETE /api/admin/delete-user/:email
+ */
+app.delete('/api/admin/delete-user/:email', async (req, res) => {
+    const { email } = req.params;
 
-    if (req.session.user && req.session.role === 'admin') {
-        try {
-            if (password) {
-                // Update both role and password if provided
-                await db.execute('UPDATE users SET password = ?, role = ? WHERE username = ?', [password, role, username]);
-            } else {
-                // Update role only if password is not provided
-                await db.execute('UPDATE users SET role = ? WHERE username = ?', [role, username]);
-            }
-            res.status(200).send('User updated successfully!');
-        } catch (error) {
-            console.error('Error updating user:', error);
-            res.status(500).send('Error updating user');
+    if (!req.session.user || req.session.role !== 'admin') {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    try {
+        const [result] = await db.execute('DELETE FROM users WHERE email = ?', [email]);
+        if (result.affectedRows > 0) {
+            return res.status(200).send('User deleted successfully!');
+        } else {
+            return res.status(404).send('User not found');
         }
-    } else {
-        res.redirect('/');
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        return res.status(500).send('Error deleting user');
     }
 });
 
-// Logout route
+/**
+ * Add a New User (Admin Only)
+ * POST /api/admin/add-user
+ * Expects: { email, password, role } in the request body.
+ */
+app.post('/api/admin/add-user', async (req, res) => {
+    if (!req.session.user || req.session.role !== "admin") {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { email, password, role } = req.body;
+
+    try {
+        // Check if a user with the provided email already exists
+        const [existingUser] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
+        if (existingUser.length > 0) {
+            return res.status(400).json({ success: false, message: "User with this email already exists" });
+        }
+
+        // Hash the provided password before storing
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await db.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", [email, hashedPassword, role]);
+
+        return res.status(201).json({ success: true, message: "User registered successfully!" });
+    } catch (error) {
+        console.error("Error adding user:", error);
+        return res.status(500).json({ success: false, message: "Error adding user" });
+    }
+});
+
+/**
+ * Edit an Existing User (Admin Only)
+ * PUT /api/admin/edit-user
+ * Expects: { email, password (optional), role } in the request body.
+ */
+app.put('/api/admin/edit-user', async (req, res) => {
+    const { email, password, role } = req.body;
+
+    if (!req.session.user || req.session.role !== 'admin') {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    try {
+        if (password) {
+            // If a new password is provided, hash it before updating
+            const hashedPassword = await bcrypt.hash(password, 10);
+            await db.execute('UPDATE users SET password = ?, role = ? WHERE email = ?', [hashedPassword, role, email]);
+        } else {
+            // Only update the user's role if no new password is provided
+            await db.execute('UPDATE users SET role = ? WHERE email = ?', [role, email]);
+        }
+        return res.status(200).send('User updated successfully!');
+    } catch (error) {
+        console.error('Error updating user:', error);
+        return res.status(500).send('Error updating user');
+    }
+});
+
+/**
+ * User Logout
+ * GET /logout
+ * Destroys the user session and redirects to the login page.
+ */
 app.get('/logout', (req, res) => {
     if (req.session) {
         req.session.destroy((err) => {
             if (err) {
-                return res.status(500).send('Unable to log out');
+                console.error("Error destroying session:", err);
+                return res.status(500).send("Logout failed.");
             }
-            res.redirect('/');
+            res.clearCookie('connect.sid'); // Remove session cookie
+            return res.redirect('/');
         });
     } else {
-        res.redirect('/');
+        return res.redirect('/');
     }
 });
 
-// Handle forgot password form submission
+/**
+ * Forgot Password
+ * POST /forgot-password
+ * Expects: { email } in the request body.
+ * For security, always respond with the same message regardless of whether the email exists.
+ */
 app.post('/forgot-password', async (req, res) => {
-    const { username } = req.body;
+    const { email } = req.body;
 
     try {
-        // Check if the user exists in the database
-        const [rows] = await db.execute('SELECT * FROM users WHERE username = ?', [username]);
+        // Query the user by email (this is used only to mimic the process)
+        await db.execute('SELECT * FROM users WHERE email = ?', [email]);
 
-        if (rows.length > 0) {
-            // If the user exists, redirect to the reset password page
-            res.redirect(`/reset-password/${username}`);
-        } else {
-            // If user does not exist, re-render the forgot password page with an error message
-            res.send(`
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-                    <link rel="stylesheet" href="style.css">
-                    <title>Forgot Password</title>
-                    <style>
-                        body {
-                            background-color: #0f0f0f;
-                            color: #e0e0e0;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            height: 100vh;
-                            font-family: Arial, sans-serif;
-                        }
-                        .card {
-                            background-color: #1e1e1e;
-                            border-radius: 10px;
-                            padding: 30px;
-                            width: 100%;
-                            max-width: 400px;
-                        }
-                        .btn-primary {
-                            background-color: #00c853;
-                            border: none;
-                        }
-                        .btn-primary:hover {
-                            background-color: #009624;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <h3 class="text-center"><i class="fas fa-unlock-alt"></i> Forgot Password</h3>
-                        
-                        <!-- Error message alert -->
-                        <div class="alert alert-danger" role="alert">
-                            User not found. Please try again.
-                        </div>
-
-                        <form action="/forgot-password" method="POST">
-                            <div class="form-group">
-                                <label for="username">Enter your Username:</label>
-                                <input type="text" class="form-control" id="username" name="username" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-block">Submit</button>
-                        </form>
-                    </div>
-                </body>
-                </html>
-            `);
-        }
+        // Always return the same message to prevent email enumeration
+        return res.send(`
+            <h2>If the email exists, a reset link has been sent.</h2>
+        `);
     } catch (error) {
         console.error('Error handling forgot password:', error);
-        res.status(500).send('Internal server error');
+        return res.status(500).send('Internal server error');
     }
 });
 
-// Serve the reset password form and handle reset submission in one consistent route
-app.get('/reset-password/:username', (req, res) => {
-    const username = req.params.username;
+/**
+ * Render the Reset Password Form
+ * GET /reset-password/:email
+ * This route displays a form for the user to input a new password.
+ */
+app.get('/reset-password/:email', (req, res) => {
+    const email = req.params.email;
 
-    res.send(`
+    // Render a simple HTML form for password reset
+    return res.send(`
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -293,7 +320,6 @@ app.get('/reset-password/:username', (req, res) => {
                     height: 100vh;
                     font-family: Arial, sans-serif;
                 }
-
                 .card {
                     background-color: #1e1e1e;
                     border-radius: 10px;
@@ -301,12 +327,10 @@ app.get('/reset-password/:username', (req, res) => {
                     width: 100%;
                     max-width: 400px;
                 }
-
                 .btn-primary {
                     background-color: #00c853;
                     border: none;
                 }
-
                 .btn-primary:hover {
                     background-color: #009624;
                 }
@@ -315,7 +339,7 @@ app.get('/reset-password/:username', (req, res) => {
         <body>
             <div class="card">
                 <h3 class="text-center"><i class="fas fa-key"></i> Reset Password</h3>
-                <form action="/reset-password/${username}" method="POST">
+                <form action="/reset-password/${encodeURIComponent(email)}" method="POST">
                     <div class="form-group">
                         <label for="password">Enter your New Password:</label>
                         <input type="password" class="form-control" id="password" name="password" required>
@@ -328,15 +352,31 @@ app.get('/reset-password/:username', (req, res) => {
     `);
 });
 
-// Handle reset password form submission
-app.post('/reset-password/:username', async (req, res) => {
-    const { username } = req.params;
+/**
+ * Handle Reset Password Submission
+ * POST /reset-password/:email
+ * Expects: { password } in the request body.
+ */
+app.post('/reset-password/:email', async (req, res) => {
+    const email = req.params.email;
     const { password } = req.body;
 
     try {
-        // Update the user's password in the database
-        await db.execute('UPDATE users SET password = ? WHERE username = ?', [password, username]);
-        res.send(`
+        // Hash the new password before storing it in the database
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Update the user's password based on their email
+        const [result] = await db.execute('UPDATE users SET password = ? WHERE email = ?', [hashedPassword, email]);
+
+        if (result.affectedRows === 0) {
+            console.error(`No user found with email: ${email}`);
+            return res.status(404).send("User not found.");
+        }
+
+        console.log(`Password reset successfully for ${email}`);
+
+        // Respond with a success page
+        return res.send(`
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -353,76 +393,37 @@ app.post('/reset-password/:username', async (req, res) => {
         `);
     } catch (error) {
         console.error('Error resetting password:', error);
-        res.status(500).send('Error resetting password');
+        return res.status(500).send('Internal server error');
     }
 });
 
-
-
-// Serve the forgot password form
-app.get('/forgot-password', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/forgot_password.html')); // Corrected path
-});
-
-// Serve the reset password form
-app.get('/reset-password/:username', (req, res) => {
-    const username = req.params.username;
-
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Reset Password</title>
-        </head>
-        <body>
-            <h2>Reset Password</h2>
-            <form action="/reset-password" method="POST">
-                <input type="hidden" name="username" value="${username}" />
-                <label for="password">Enter new password:</label>
-                <input type="password" id="password" name="password" required>
-                <button type="submit">Reset Password</button>
-            </form>
-        </body>
-        </html>
-    `);
-});
-
-// Handle reset password form submission
-app.post('/reset-password', async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        // Update the user's password in the database
-        await db.execute('UPDATE users SET password = ? WHERE username = ?', [password, username]);
-        res.send('Password has been reset successfully. You can now log in with your new password.');
-    } catch (error) {
-        console.error('Error resetting password:', error);
-        res.status(500).send('Error resetting password');
-    }
-});
-
-// Test Database Connection
+/**
+ * Test Database Connection
+ * GET /test-db
+ * Returns a simple confirmation message if the connection works.
+ */
 app.get('/test-db', async (req, res) => {
     try {
-        const [rows] = await db.execute('SELECT 1');
-        res.send('Database connection is working!');
+        await db.execute('SELECT 1');
+        return res.send('Database connection is working!');
     } catch (error) {
         console.error('Database connection error:', error);
-        res.status(500).send('Database connection failed');
+        return res.status(500).send('Database connection failed');
     }
 });
 
+// ---------------------
+// Start the Server
+// ---------------------
 
-// Cache Control
-app.use((req, res, next) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    next();
-});
-
-
-// Start the server
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
+
+console.log({
+    DB_HOST: process.env.DB_HOST,
+    DB_USER: process.env.DB_USER,
+    DB_PASS: process.env.DB_PASS,
+    DB_NAME: process.env.DB_NAME
+  });
+  
