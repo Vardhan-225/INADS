@@ -1,5 +1,4 @@
 
-
 /**
  * app.js
  * 
@@ -523,7 +522,6 @@ app.get('/test-db', async (req, res) => {
     return res.status(500).send('Database connection failed');
   }
 });
-
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
