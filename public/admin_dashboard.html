@@ -40,13 +40,14 @@
       font-weight: bold;
       flex: 1;
       color: #00c853 !important;
+      margin-left: 20px; /* Extra spacing after the hamburger */
     }
     .hamburger {
       font-size: 1.5rem;
       cursor: pointer;
       color: #e0e0e0;
-      margin-right: 20px;
       transition: color 0.3s ease;
+      margin-right: 20px;
     }
     .hamburger:hover {
       color: #00c853;
@@ -62,7 +63,7 @@
       padding: 30px 0;
       z-index: 900;
       transition: left 0.5s ease, box-shadow 0.5s ease;
-      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
     }
     .sidebar.open {
       left: 0;
@@ -198,26 +199,16 @@
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
     <div class="list-group">
-      <a href="#" class="list-group-item list-group-item-action active">
-        <i class="fas fa-tachometer-alt"></i> Overview
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="fas fa-file-alt"></i> Logs
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="fas fa-chart-line"></i> Anomalies
-      </a>
-      <a href="/user-management" class="list-group-item list-group-item-action">
-        <i class="fas fa-users"></i> User Management
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="fas fa-cogs"></i> Settings
-      </a>
+      <a href="#" class="list-group-item list-group-item-action active"><i class="fas fa-tachometer-alt"></i> Overview</a>
+      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-file-alt"></i> Logs</a>
+      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-chart-line"></i> Anomalies</a>
+      <a href="/user-management" class="list-group-item list-group-item-action"><i class="fas fa-users"></i> User Management</a>
+      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-cogs"></i> Settings</a>
     </div>
     <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
   </div>
 
-  <!-- Main Content -->
+  <!-- Main Content Wrapper -->
   <div class="main-content-wrapper" id="main-content">
     <!-- Metrics Cards -->
     <div class="metrics-row">

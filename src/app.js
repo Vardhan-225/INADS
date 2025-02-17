@@ -1,429 +1,536 @@
 /**
- * Main Server File
+ * app.js
  * 
- * This Express server handles user authentication (login, logout), 
- * user management (admin-only CRUD operations), and password resets.
+ * Main Server File for INADS with MFA and improved password reset.
  * 
- * Note: This code uses email as the unique identifier for users.
+ * Features:
+ * - User authentication with MFA (via email or TOTP).
+ * - Password validation: must be at least 8 characters, start with an uppercase letter, contain at least one digit and one special character.
+ * - Secure forgot password flow using a reset token stored in the database.
+ * - Secure reset password flow using the reset token.
+ * 
+ * Note: This code uses email as the unique identifier.
  */
 
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const mysql = require('mysql2/promise'); // Using the promise API for MySQL
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const speakeasy = require('speakeasy');
+const crypto = require('crypto');
 
-// Use an absolute path for the .env file
 require('dotenv').config({ path: "C:/Users/S569652/Documents/INADS/Website/INADS/.env" });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Create a MySQL connection pool using environment variables (or defaults)
 const db = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASS || '',
-    database: process.env.DB_NAME || 'INADS'
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'INADS'
 });
 
-// Immediately check if the database connection works
 (async () => {
-    try {
-        await db.getConnection();
-        console.log("Successfully connected to the database.");
-    } catch (error) {
-        console.error("Database connection failed:", error.message);
-        process.exit(1); // Exit the process if unable to connect
-    }
+  try {
+    await db.getConnection();
+    console.log("Successfully connected to the database.");
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    process.exit(1);
+  }
 })();
 
-// ---------------------
+// Configure Nodemailer
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT || 587,
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });  
+
+// Password Validation Function
+function validatePassword(password) {
+  // Must be at least 8 characters, start with an uppercase letter,
+  // contain at least one digit and one special character.
+  const regex = /^(?=[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
+  return regex.test(password);
+}
+
 // Global Middleware
-// ---------------------
-
-// Cache Control Middleware: Prevent caching on all dynamic responses
 app.use((req, res, next) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    next();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  next();
 });
-
-// Serve static files from the "public" folder (e.g., HTML, CSS, client JS)
 app.use(express.static(path.join(__dirname, '../public')));
-
-// Parse URL-encoded form data and JSON bodies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-// Session Middleware configuration
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'secret-key', // Use an env variable in production
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: false,  // Set to true when using HTTPS
-        httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 1 // Session expires after 1 hour
-    }
+  secret: process.env.SESSION_SECRET || 'secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60
+  }
 }));
 
-// ---------------------
 // Routes
-// ---------------------
 
-// Root Route: Render the login page
+// Render Login Page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 /**
- * User Login
- * POST /api/auth/login
- * Expects: { email, password } in the request body.
- * On success, sets session variables and redirects to the appropriate dashboard.
+ * User Login with MFA Support
  */
 app.post('/api/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-
-    try {
-        // Fetch user by email from the database
-        const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
-        if (rows.length === 0) {
-            // Respond with a generic message to avoid user enumeration
-            return res.status(401).json({ success: false, message: "Invalid email or password" });
-        }
-
-        const user = rows[0];
-
-        // Compare the provided password with the stored hashed password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({ success: false, message: "Invalid email or password" });
-        }
-
-        // Set session data for the authenticated user
-        req.session.user = user.email;
-        req.session.role = user.role;
-        await new Promise((resolve) => req.session.save(resolve));
-
-        // Instead of redirecting, send JSON with success and a redirect URL
-        const redirectUrl = user.role === 'admin' ? '/admin-dashboard' : '/dashboard';
-        return res.json({ success: true, redirect: redirectUrl });
-    } catch (error) {
-        console.error("Error during login:", error);
-        return res.status(500).json({ success: false, message: "Internal Server Error" });
+  const { email, password } = req.body;
+  try {
+    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
+    const user = rows[0];
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+    // Validate password (if desired here too)
+    if (!validatePassword(password)) {
+      return res.status(400).json({ success: false, message: "Password does not meet security requirements." });
+    }
+    // If MFA is enabled
+    if (user.mfa_enabled) {
+      req.session.tempUser = { email: user.email, role: user.role };
+      if (user.mfa_type === 'email') {
+        // Generate a 6-digit code
+        const mfaCode = Math.floor(100000 + Math.random() * 900000).toString();
+        req.session.mfa = { code: mfaCode, expires: Date.now() + 5 * 60 * 1000 };
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'no-reply@example.com',
+          to: user.email,
+          subject: 'Your INADS MFA Code',
+          text: `Your one-time MFA code is: ${mfaCode}`
+        });
+        return res.json({ success: true, mfa: true, message: "MFA code sent to your email." });
+      } else if (user.mfa_type === 'totp') {
+        req.session.mfa = { totp: true };
+        return res.json({ success: true, mfa: true, message: "Enter the code from your authenticator app." });
+      }
+    }
+    // No MFA enabled – finalize login
+    req.session.user = user.email;
+    req.session.role = user.role;
+    return res.json({ success: true, redirect: user.role === 'admin' ? '/admin-dashboard' : '/dashboard' });
+  } catch (error) {
+    console.error("Error during login:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
+
+/**
+ * MFA Verification Endpoint
+ */
+app.post('/api/auth/verify-mfa', async (req, res) => {
+  const { code } = req.body;
+  if (!req.session.tempUser || !req.session.mfa) {
+    return res.status(400).json({ success: false, message: "No pending MFA verification." });
+  }
+  // Email-based MFA
+  if (req.session.mfa.code) {
+    if (Date.now() > req.session.mfa.expires) {
+      return res.status(400).json({ success: false, message: "MFA code expired." });
+    }
+    if (req.session.mfa.code === code) {
+      req.session.user = req.session.tempUser.email;
+      req.session.role = req.session.tempUser.role;
+      req.session.tempUser = null;
+      req.session.mfa = null;
+      return res.json({ success: true, redirect: req.session.role === 'admin' ? '/admin-dashboard' : '/dashboard' });
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid MFA code." });
+    }
+  }
+  // TOTP-based MFA
+  else if (req.session.mfa.totp) {
+    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [req.session.tempUser.email]);
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: "User not found." });
+    }
+    const user = rows[0];
+    const verified = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: 'base32',
+      token: code,
+      window: 1
+    });
+    if (verified) {
+      req.session.user = req.session.tempUser.email;
+      req.session.role = req.session.tempUser.role;
+      req.session.tempUser = null;
+      req.session.mfa = null;
+      return res.json({ success: true, redirect: user.role === 'admin' ? '/admin-dashboard' : '/dashboard' });
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid authenticator code." });
+    }
+  } else {
+    return res.status(400).json({ success: false, message: "No MFA process found." });
+  }
+});
+
+/**
+ * Forgot Password Endpoint
+ * This endpoint generates a password reset token, saves it to the user's record,
+ * and sends a reset link via email.
+ */
+app.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  // Always return the same response to prevent enumeration
+  const message = `<h2>If the email exists, a reset link has been sent.</h2>`;
+  try {
+    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
+      return res.send(message);
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 3600000; // 1 hour expiration
+    await db.execute('UPDATE users SET reset_token = ?, reset_expires = ? WHERE email = ?', [token, expires, email]);
+    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${token}`;
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'no-reply@example.com',
+      to: email,
+      subject: 'INADS Password Reset',
+      text: `You requested a password reset. Click the following link to reset your password: ${resetUrl}`
+    });
+    return res.send(message);
+  } catch (error) {
+    console.error('Error in forgot-password:', error);
+    return res.status(500).send('Internal server error');
+  }
+});
+
+/**
+ * GET /reset-password/:token
+ * Renders the reset password form if the token is valid.
+ */
+app.get('/reset-password/:token', async (req, res) => {
+  const token = req.params.token;
+  try {
+    const [rows] = await db.execute('SELECT * FROM users WHERE reset_token = ? AND reset_expires > ?', [token, Date.now()]);
+    if (rows.length === 0) {
+      return res.send('<h2>Reset link is invalid or has expired.</h2>');
+    }
+    // Serve a reset password page from the public folder.
+    return res.sendFile(path.join(__dirname, '../public/reset_password.html'));
+  } catch (error) {
+    console.error('Error fetching reset token:', error);
+    return res.status(500).send('Internal server error');
+  }
+});
+
+/**
+ * POST /reset-password/:token
+ * Updates the user's password if the reset token is valid.
+ */
+app.post('/reset-password/:token', async (req, res) => {
+  const token = req.params.token;
+  const { password } = req.body;
+  if (!validatePassword(password)) {
+    return res.status(400).send("Password does not meet security requirements.");
+  }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [result] = await db.execute('UPDATE users SET password = ?, reset_token = NULL, reset_expires = NULL WHERE reset_token = ? AND reset_expires > ?', [hashedPassword, token, Date.now()]);
+    if (result.affectedRows === 0) {
+      return res.send('<h2>Reset link is invalid or has expired.</h2>');
+    }
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <title>Password Reset Success</title>
+      </head>
+      <body style="background-color: #0f0f0f; color: #e0e0e0; text-align: center; padding-top: 100px; font-family: Arial, sans-serif;">
+        <h2>Password has been reset successfully!</h2>
+        <p>You can now <a href="/" style="color: #00c853;">log in</a> with your new password.</p>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return res.status(500).send('Internal server error');
+  }
 });
 
 /**
  * Dashboard Route for Regular Users
- * GET /dashboard
  */
 app.get('/dashboard', (req, res) => {
-    if (req.session.user && req.session.role === 'user') {
-        return res.sendFile(path.join(__dirname, '../public/dashboard.html'));
-    }
-    return res.redirect('/');
+  if (req.session.user && req.session.role === 'user') {
+    return res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+  }
+  return res.redirect('/');
 });
 
 /**
  * Admin Dashboard Route
- * GET /admin-dashboard
  */
 app.get('/admin-dashboard', (req, res) => {
-    if (req.session.user && req.session.role === 'admin') {
-        return res.sendFile(path.join(__dirname, '../public/admin_dashboard.html'));
-    }
-    return res.redirect('/');
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/admin_dashboard.html'));
+  }
+  return res.redirect('/');
 });
 
 /**
  * User Management Page (Admin Only)
- * GET /user-management
  */
 app.get('/user-management', (req, res) => {
-    if (req.session.user && req.session.role === 'admin') {
-        return res.sendFile(path.join(__dirname, '../public/user_management.html'));
-    }
-    return res.redirect('/');
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/user_management.html'));
+  }
+  return res.redirect('/');
 });
 
 /**
  * Get All Users (Admin Only)
- * GET /api/admin/get-users
- * Returns a JSON array of user objects.
  */
 app.get('/api/admin/get-users', async (req, res) => {
-    if (!req.session.user || req.session.role !== "admin") {
-        return res.status(403).json({ success: false, message: "Unauthorized" });
-    }
-
-    try {
-        const [rows] = await db.execute("SELECT id, email, role FROM users");
-        return res.json(rows);
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        return res.status(500).json({ success: false, message: "Error fetching users" });
-    }
+  if (!req.session.user || req.session.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Unauthorized" });
+  }
+  try {
+    const [rows] = await db.execute("SELECT id, email, role FROM users");
+    return res.json(rows);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return res.status(500).json({ success: false, message: "Error fetching users" });
+  }
 });
 
 /**
  * Delete a User (Admin Only)
- * DELETE /api/admin/delete-user/:email
  */
 app.delete('/api/admin/delete-user/:email', async (req, res) => {
-    const { email } = req.params;
-
-    if (!req.session.user || req.session.role !== 'admin') {
-        return res.status(403).json({ success: false, message: "Unauthorized" });
+  const { email } = req.params;
+  if (!req.session.user || req.session.role !== 'admin') {
+    return res.status(403).json({ success: false, message: "Unauthorized" });
+  }
+  try {
+    const [result] = await db.execute('DELETE FROM users WHERE email = ?', [email]);
+    if (result.affectedRows > 0) {
+      return res.status(200).send('User deleted successfully!');
+    } else {
+      return res.status(404).send('User not found');
     }
-
-    try {
-        const [result] = await db.execute('DELETE FROM users WHERE email = ?', [email]);
-        if (result.affectedRows > 0) {
-            return res.status(200).send('User deleted successfully!');
-        } else {
-            return res.status(404).send('User not found');
-        }
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        return res.status(500).send('Error deleting user');
-    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return res.status(500).send('Error deleting user');
+  }
 });
 
 /**
  * Add a New User (Admin Only)
- * POST /api/admin/add-user
- * Expects: { email, password, role } in the request body.
  */
 app.post('/api/admin/add-user', async (req, res) => {
-    if (!req.session.user || req.session.role !== "admin") {
-        return res.status(403).json({ success: false, message: "Unauthorized" });
+  if (!req.session.user || req.session.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Unauthorized" });
+  }
+  const { email, password, role } = req.body;
+  if (!validatePassword(password)) {
+    return res.status(400).json({ success: false, message: "Password must be at least 8 characters long, start with an uppercase letter, and contain at least one digit and one special character." });
+  }
+  try {
+    const [existingUser] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
+    if (existingUser.length > 0) {
+      return res.status(400).json({ success: false, message: "User with this email already exists" });
     }
-
-    const { email, password, role } = req.body;
-
-    try {
-        // Check if a user with the provided email already exists
-        const [existingUser] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
-        if (existingUser.length > 0) {
-            return res.status(400).json({ success: false, message: "User with this email already exists" });
-        }
-
-        // Hash the provided password before storing
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await db.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", [email, hashedPassword, role]);
-
-        return res.status(201).json({ success: true, message: "User registered successfully!" });
-    } catch (error) {
-        console.error("Error adding user:", error);
-        return res.status(500).json({ success: false, message: "Error adding user" });
-    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", [email, hashedPassword, role]);
+    return res.status(201).json({ success: true, message: "User registered successfully!" });
+  } catch (error) {
+    console.error("Error adding user:", error);
+    return res.status(500).json({ success: false, message: "Error adding user" });
+  }
 });
 
 /**
  * Edit an Existing User (Admin Only)
- * PUT /api/admin/edit-user
- * Expects: { email, password (optional), role } in the request body.
  */
 app.put('/api/admin/edit-user', async (req, res) => {
-    const { email, password, role } = req.body;
-
-    if (!req.session.user || req.session.role !== 'admin') {
-        return res.status(403).json({ success: false, message: "Unauthorized" });
-    }
-
-    try {
-        if (password) {
-            // If a new password is provided, hash it before updating
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await db.execute('UPDATE users SET password = ?, role = ? WHERE email = ?', [hashedPassword, role, email]);
-        } else {
-            // Only update the user's role if no new password is provided
-            await db.execute('UPDATE users SET role = ? WHERE email = ?', [role, email]);
-        }
-        return res.status(200).send('User updated successfully!');
-    } catch (error) {
-        console.error('Error updating user:', error);
-        return res.status(500).send('Error updating user');
-    }
-});
-
-/**
- * User Logout
- * GET /logout
- * Destroys the user session and redirects to the login page.
- */
-app.get('/logout', (req, res) => {
-    if (req.session) {
-        req.session.destroy((err) => {
-            if (err) {
-                console.error("Error destroying session:", err);
-                return res.status(500).send("Logout failed.");
-            }
-            res.clearCookie('connect.sid'); // Remove session cookie
-            return res.redirect('/');
-        });
+  const { email, password, role } = req.body;
+  if (!req.session.user || req.session.role !== 'admin') {
+    return res.status(403).json({ success: false, message: "Unauthorized" });
+  }
+  try {
+    if (password) {
+      if (!validatePassword(password)) {
+        return res.status(400).json({ success: false, message: "Password must be at least 8 characters long, start with an uppercase letter, and contain at least one digit and one special character." });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await db.execute('UPDATE users SET password = ?, role = ? WHERE email = ?', [hashedPassword, role, email]);
     } else {
-        return res.redirect('/');
+      await db.execute('UPDATE users SET role = ? WHERE email = ?', [role, email]);
     }
+    return res.status(200).send('User updated successfully!');
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return res.status(500).send('Error updating user');
+  }
 });
 
 /**
  * Forgot Password
- * POST /forgot-password
- * Expects: { email } in the request body.
- * For security, always respond with the same message regardless of whether the email exists.
+ * Generates a reset token, stores it in the user's record,
+ * and sends an email with the reset link.
  */
 app.post('/forgot-password', async (req, res) => {
-    const { email } = req.body;
-
-    try {
-        // Query the user by email (this is used only to mimic the process)
-        await db.execute('SELECT * FROM users WHERE email = ?', [email]);
-
-        // Always return the same message to prevent email enumeration
-        return res.send(`
-            <h2>If the email exists, a reset link has been sent.</h2>
-        `);
-    } catch (error) {
-        console.error('Error handling forgot password:', error);
-        return res.status(500).send('Internal server error');
+  const { email } = req.body;
+  const message = `<h2>If the email exists, a reset link has been sent.</h2>`;
+  try {
+    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
+      return res.send(message);
     }
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 3600000; // 1 hour expiry
+    await db.execute('UPDATE users SET reset_token = ?, reset_expires = ? WHERE email = ?', [token, expires, email]);
+    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${token}`;
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'no-reply@example.com',
+      to: email,
+      subject: 'INADS Password Reset',
+      text: `You requested a password reset. Click the following link to reset your password: ${resetUrl}`
+    });
+    return res.send(message);
+  } catch (error) {
+    console.error('Error in forgot-password:', error);
+    return res.status(500).send('Internal server error');
+  }
 });
 
 /**
- * Render the Reset Password Form
- * GET /reset-password/:email
- * This route displays a form for the user to input a new password.
+ * GET /reset-password/:token
+ * Renders a reset password form if the token is valid.
  */
-app.get('/reset-password/:email', (req, res) => {
-    const email = req.params.email;
+app.get('/reset-password/:token', async (req, res) => {
+  const token = req.params.token;
+  try {
+    const [rows] = await db.execute('SELECT * FROM users WHERE reset_token = ? AND reset_expires > ?', [token, Date.now()]);
+    if (rows.length === 0) {
+      return res.send('<h2>Reset link is invalid or has expired.</h2>');
+    }
+    // Serve the reset password page (create a dedicated page in your public folder, e.g., reset_password.html)
+    return res.sendFile(path.join(__dirname, '../public/reset_password.html'));
+  } catch (error) {
+    console.error('Error fetching reset token:', error);
+    return res.status(500).send('Internal server error');
+  }
+});
 
-    // Render a simple HTML form for password reset
+/**
+ * POST /reset-password/:token
+ * Updates the user's password if the reset token is valid.
+ */
+app.post('/reset-password/:token', async (req, res) => {
+  const token = req.params.token;
+  const { password } = req.body;
+  if (!validatePassword(password)) {
+    return res.status(400).send("Password must be at least 8 characters long, start with an uppercase letter, and contain at least one digit and one special character.");
+  }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [result] = await db.execute(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_expires = NULL WHERE reset_token = ? AND reset_expires > ?',
+      [hashedPassword, token, Date.now()]
+    );
+    if (result.affectedRows === 0) {
+      return res.send('<h2>Reset link is invalid or has expired.</h2>');
+    }
     return res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-            <title>Reset Password</title>
-            <style>
-                body {
-                    background-color: #0f0f0f;
-                    color: #e0e0e0;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    font-family: Arial, sans-serif;
-                }
-                .card {
-                    background-color: #1e1e1e;
-                    border-radius: 10px;
-                    padding: 30px;
-                    width: 100%;
-                    max-width: 400px;
-                }
-                .btn-primary {
-                    background-color: #00c853;
-                    border: none;
-                }
-                .btn-primary:hover {
-                    background-color: #009624;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="card">
-                <h3 class="text-center"><i class="fas fa-key"></i> Reset Password</h3>
-                <form action="/reset-password/${encodeURIComponent(email)}" method="POST">
-                    <div class="form-group">
-                        <label for="password">Enter your New Password:</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
-                </form>
-            </div>
-        </body>
-        </html>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <title>Password Reset Success</title>
+      </head>
+      <body style="background-color: #0f0f0f; color: #e0e0e0; text-align: center; padding-top: 100px; font-family: Arial, sans-serif;">
+        <h2>Password has been reset successfully!</h2>
+        <p>You can now <a href="/" style="color: #00c853;">log in</a> with your new password.</p>
+      </body>
+      </html>
     `);
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return res.status(500).send('Internal server error');
+  }
 });
 
 /**
- * Handle Reset Password Submission
- * POST /reset-password/:email
- * Expects: { password } in the request body.
+ * Dashboard Route for Regular Users
  */
-app.post('/reset-password/:email', async (req, res) => {
-    const email = req.params.email;
-    const { password } = req.body;
+app.get('/dashboard', (req, res) => {
+  if (req.session.user && req.session.role === 'user') {
+    return res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+  }
+  return res.redirect('/');
+});
 
-    try {
-        // Hash the new password before storing it in the database
-        const hashedPassword = await bcrypt.hash(password, 10);
+/**
+ * Admin Dashboard Route
+ */
+app.get('/admin-dashboard', (req, res) => {
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/admin_dashboard.html'));
+  }
+  return res.redirect('/');
+});
 
-        // Update the user's password based on their email
-        const [result] = await db.execute('UPDATE users SET password = ? WHERE email = ?', [hashedPassword, email]);
-
-        if (result.affectedRows === 0) {
-            console.error(`No user found with email: ${email}`);
-            return res.status(404).send("User not found.");
-        }
-
-        console.log(`Password reset successfully for ${email}`);
-
-        // Respond with a success page
-        return res.send(`
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-                <title>Password Reset Success</title>
-            </head>
-            <body style="background-color: #0f0f0f; color: #e0e0e0; text-align: center; padding-top: 100px; font-family: Arial, sans-serif;">
-                <h2>Password has been reset successfully!</h2>
-                <p>You can now <a href="/" style="color: #00c853;">log in</a> with your new password.</p>
-            </body>
-            </html>
-        `);
-    } catch (error) {
-        console.error('Error resetting password:', error);
-        return res.status(500).send('Internal server error');
-    }
+/**
+ * User Management Page (Admin Only)
+ */
+app.get('/user-management', (req, res) => {
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/user_management.html'));
+  }
+  return res.redirect('/');
 });
 
 /**
  * Test Database Connection
- * GET /test-db
- * Returns a simple confirmation message if the connection works.
  */
 app.get('/test-db', async (req, res) => {
-    try {
-        await db.execute('SELECT 1');
-        return res.send('Database connection is working!');
-    } catch (error) {
-        console.error('Database connection error:', error);
-        return res.status(500).send('Database connection failed');
-    }
+  try {
+    await db.execute('SELECT 1');
+    return res.send('Database connection is working!');
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return res.status(500).send('Database connection failed');
+  }
 });
 
-// ---------------------
-// Start the Server
-// ---------------------
-
+// Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+  console.log(`Server is running at http://localhost:${PORT}`);
 });
 
 console.log({
-    DB_HOST: process.env.DB_HOST,
-    DB_USER: process.env.DB_USER,
-    DB_PASS: process.env.DB_PASS,
-    DB_NAME: process.env.DB_NAME
-  });
-  
+  DB_HOST: process.env.DB_HOST,
+  DB_USER: process.env.DB_USER,
+  DB_PASS: process.env.DB_PASS,
+  DB_NAME: process.env.DB_NAME
+});
