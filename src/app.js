@@ -88,7 +88,6 @@ app.use(session({
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
-
 /**
  * User Login with MFA Support
  */

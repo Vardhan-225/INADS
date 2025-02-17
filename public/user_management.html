@@ -377,6 +377,7 @@
       fetchUsers();
     });
     // Handle Add User form submission
+    
     document.getElementById("add-user-form").addEventListener("submit", async function(event) {
       event.preventDefault();
       const email = document.getElementById("email").value;
@@ -401,6 +402,7 @@
       }
     });
     // Handle Edit User form submission
+    
     document.getElementById("edit-user-form").addEventListener("submit", async function(event) {
       event.preventDefault();
       const email = document.getElementById("edit-email").value;
@@ -424,6 +426,7 @@
         alert('An error occurred. Please try again later.');
       }
     });
+    
     // Delete User functionality
     async function deleteUser(email) {
       if (confirm(`Are you sure you want to delete user ${email}?`)) {
@@ -442,6 +445,7 @@
       }
     }
     // Load users when the page loads
+    
     fetchUsers();
   </script>
 </body>
