@@ -85,7 +85,7 @@ app.use(session({
 
 // Routes
 
-// Render Login Page
+// Render Login Page for logging in
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
@@ -145,7 +145,7 @@ app.post('/api/auth/verify-mfa', async (req, res) => {
   if (!req.session.tempUser || !req.session.mfa) {
     return res.status(400).json({ success: false, message: "No pending MFA verification." });
   }
-  // Email-based MFA
+  // Email-based MFA for code
   if (req.session.mfa.code) {
     if (Date.now() > req.session.mfa.expires) {
       return res.status(400).json({ success: false, message: "MFA code expired." });
