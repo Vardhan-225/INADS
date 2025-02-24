@@ -1,13 +1,17 @@
-INADS (Intelligent Network Anomaly Detection System)
+Intelligent Network Anomaly Detection System (INADS)
 
-INADS is a robust, real-time network security tool designed to detect and analyze anomalies using multi-staged machine learning (ML) models across different layers of the TCP/IP stack. It provides a secure, intuitive web interface for security administrators and analysts to monitor network activity, analyze logs, and take action against potential threats.
+INADS is an advanced real-time network security solution that leverages multi-stage machine learning (ML) models to detect and analyze anomalies across various layers of the TCP/IP stack. It features a secure and user-friendly web interface, enabling security administrators and analysts to monitor network activity, review logs, and respond to potential threats effectively.
 
-Key Features
+Key Features:
 
-1. Anomaly Detection Dashboard: Visualize real-time anomalies with detailed metrics and visualizations.
-2. Log Analysis: Search, filter, and analyze historical logs of network activity and anomalies.
-3. Secure User Authentication: Access restricted to authorized security professionals using industry-standard security practices.
-4. Database Integration: Efficient storage and retrieval of anomaly and log data for analysis and reporting.
-5. Scalable Design: Built to integrate with live GNS3 network simulators and support enterprise-level traffic analysis.
+Anomaly Detection Dashboard: Provides real-time insights into network anomalies with comprehensive metrics and visual representations.
+Log Analysis: Enables searching, filtering, and analyzing historical network activity and anomaly logs.
+Secure User Authentication: Ensures access control through industry-standard security measures, restricting entry to authorized personnel.
+Database Integration: Facilitates efficient storage and retrieval of log and anomaly data for in-depth analysis and reporting.
+Scalable Architecture: Designed for seamless integration with GNS3 network simulators and capable of handling enterprise-level traffic analysis.
+
+
+
+
 
 
