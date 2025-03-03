@@ -157,29 +157,39 @@
       errorDiv.style.display = 'block';
     }
     // Handle login form submission using AJAX (fetch)
-    document.getElementById("login-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      try {
+document.getElementById("login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    try {
         const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
         });
+
         const data = await response.json();
-        if (data.success) {
-          window.location.href = data.redirect;
+
+        if (data.mfa) {
+            // If MFA is enabled, store email temporarily and redirect to MFA verification page
+            localStorage.setItem("tempEmail", email);
+            window.location.href = "/mfa.html";
+        } else if (data.success) {
+            // If login is successful without MFA, redirect to dashboard or admin panel
+            window.location.href = data.redirect;
         } else {
-          document.getElementById("error-message").textContent = data.message || "Invalid email or password";
-          document.getElementById("error-message").style.display = "block";
+            // Display error message
+            document.getElementById("error-message").textContent = data.message || "Invalid email or password";
+            document.getElementById("error-message").style.display = "block";
         }
-      } catch (error) {
+    } catch (error) {
         console.error("Login error:", error);
         document.getElementById("error-message").textContent = "An error occurred. Please try again.";
         document.getElementById("error-message").style.display = "block";
-      }
-    });
+    }
+});
+
   </script>    
 </body>
 </html>

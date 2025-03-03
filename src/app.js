@@ -112,21 +112,18 @@ app.post('/api/auth/login', async (req, res) => {
     if (user.mfa_enabled) {
       req.session.tempUser = { email: user.email, role: user.role };
       if (user.mfa_type === 'email') {
-        // Generate a 6-digit code
-        const mfaCode = Math.floor(100000 + Math.random() * 900000).toString();
-        req.session.mfa = { code: mfaCode, expires: Date.now() + 5 * 60 * 1000 };
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'no-reply@example.com',
-          to: user.email,
-          subject: 'Your INADS MFA Code',
-          text: `Your one-time MFA code is: ${mfaCode}`
-        });
-        return res.json({ success: true, mfa: true, message: "MFA code sent to your email." });
-      } else if (user.mfa_type === 'totp') {
-        req.session.mfa = { totp: true };
-        return res.json({ success: true, mfa: true, message: "Enter the code from your authenticator app." });
+          // Generate a 6-digit code
+          const mfaCode = Math.floor(100000 + Math.random() * 900000).toString();
+          req.session.mfa = { code: mfaCode, expires: Date.now() + 5 * 60 * 1000 };
+          await transporter.sendMail({
+              from: process.env.SMTP_FROM || 'no-reply@example.com',
+              to: user.email,
+              subject: 'Your INADS MFA Code',
+              text: `Your one-time MFA code is: ${mfaCode}`
+          });
+          return res.json({ success: true, mfa: true, redirect: "/mfa.html" });
       }
-    }
+  }  
     // No MFA enabled – finalize login
     req.session.user = user.email;
     req.session.role = user.role;

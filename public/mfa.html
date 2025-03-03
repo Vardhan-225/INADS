@@ -62,26 +62,24 @@
     </form>
   </div>
   <script>
-    document.getElementById('mfa-form').addEventListener('submit', async function(event) {
-      event.preventDefault();
-      const code = document.getElementById('mfa-code').value;
-      try {
-        const response = await fetch('/api/auth/verify-mfa', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
-        });
-        const data = await response.json();
-        if (data.success) {
-          window.location.href = data.redirect;
-        } else {
-          alert(data.message || "MFA verification failed.");
-        }
-      } catch (error) {
-        console.error("MFA verification error:", error);
-        alert("An error occurred. Please try again.");
-      }
+   document.getElementById('mfa-form').addEventListener('submit', async function(event) {
+    event.preventDefault();
+    const email = localStorage.getItem("tempEmail");
+    const otp = document.getElementById('mfa-code').value;
+
+    const response = await fetch('/api/auth/verify-mfa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
     });
+
+    const data = await response.json();
+    if (data.success) {
+        window.location.href = data.redirect;
+    } else {
+        alert("Invalid OTP. Please try again.");
+    }
+});
   </script>
 </body>
 </html>
