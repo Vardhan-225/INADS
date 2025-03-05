@@ -1,0 +1,133 @@
+<!-- Cyber-Shield SVG Logo -->
+<svg
+  width="180"
+  height="220"
+  viewBox="0 0 200 220"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- DEFINITIONS: Neon Gradient, Glow Filter, and Circuit Dash Animation -->
+  <defs>
+    <!-- Neon Gradient for the shield stroke & circuit lines -->
+    <linearGradient id="cyberGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00c853" />
+      <stop offset="100%" stop-color="#009624" />
+    </linearGradient>
+
+    <!-- Neon Glow Filter -->
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur1" />
+      <feMerge>
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- GROUP: Everything inside the shield -->
+  <g filter="url(#neonGlow)">
+
+    <!-- SHIELD OUTLINE -->
+    <path
+      id="shieldOutline"
+      d="
+        M100,10
+        Q30,70 50,140
+        Q100,190 150,140
+        Q170,70 100,10
+        Z
+      "
+      fill="none"
+      stroke="url(#cyberGradient)"
+      stroke-width="3"
+    />
+
+    <!-- CIRCUIT PATTERN (Animated stroke dash) -->
+    <path
+      id="circuitPattern"
+      d="
+        M100,30
+        Q80,50 100,70
+        Q120,90 100,110
+        Q80,130 100,150
+        Q120,170 100,190
+      "
+      fill="none"
+      stroke="url(#cyberGradient)"
+      stroke-width="2"
+      stroke-dasharray="8 8"
+      stroke-dashoffset="1000"
+    >
+      <!-- Animate the dash offset to create a scanning effect -->
+      <animate
+        attributeName="stroke-dashoffset"
+        from="1000"
+        to="0"
+        dur="3s"
+        repeatCount="indefinite"
+      />
+    </path>
+
+    <!-- OPTIONAL: Additional mini-circuit lines branching off the main line -->
+    <path
+      d="M90,60 L80,60"
+      fill="none"
+      stroke="url(#cyberGradient)"
+      stroke-width="2"
+      stroke-dasharray="6 6"
+      stroke-dashoffset="60"
+    >
+      <animate
+        attributeName="stroke-dashoffset"
+        from="60"
+        to="0"
+        dur="2.5s"
+        repeatCount="indefinite"
+      />
+    </path>
+    <path
+      d="M110,100 L120,100"
+      fill="none"
+      stroke="url(#cyberGradient)"
+      stroke-width="2"
+      stroke-dasharray="6 6"
+      stroke-dashoffset="60"
+    >
+      <animate
+        attributeName="stroke-dashoffset"
+        from="60"
+        to="0"
+        dur="2.5s"
+        repeatCount="indefinite"
+      />
+    </path>
+    <path
+      d="M90,140 L80,140"
+      fill="none"
+      stroke="url(#cyberGradient)"
+      stroke-width="2"
+      stroke-dasharray="6 6"
+      stroke-dashoffset="60"
+    >
+      <animate
+        attributeName="stroke-dashoffset"
+        from="60"
+        to="0"
+        dur="2.5s"
+        repeatCount="indefinite"
+      />
+    </path>
+
+    <!-- INADS TEXT -->
+    <text
+      x="50%"
+      y="52%"
+      text-anchor="middle"
+      fill="url(#cyberGradient)"
+      font-size="24"
+      font-weight="bold"
+      style="font-family: 'Roboto', sans-serif;"
+    >
+      INADS
+    </text>
+  </g>
+</svg>
