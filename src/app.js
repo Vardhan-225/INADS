@@ -296,6 +296,7 @@ app.post('/reset-password/:token', async (req, res) => {
       [hashedPassword, token, Date.now()]
     );
     if (result.affectedRows === 0) {
+      //invalid reset link
       return res.send('<h2>Reset link is invalid or has expired.</h2>');
     }
     return res.send(`
