@@ -252,7 +252,7 @@ app.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       from: process.env.SMTP_FROM || 'no-reply@example.com',
       to: email,
       subject: 'INADS Password Reset',
-      text: `You requested a password reset. Click the following link to reset your password: ${resetUrl}\n\nIf you did not request this, please ignore this email.`
+      text: `You have requested a password reset. Click the following link to reset your password: ${resetUrl}\n\nIf you did not request this, please ignore this email.`
     });
     return res.send(message);
   } catch (error) {
@@ -270,7 +270,7 @@ app.get('/reset-password/:token', async (req, res) => {
   try {
     const [rows] = await db.execute('SELECT * FROM users WHERE reset_token = ? AND reset_expires > ?', [token, Date.now()]);
     if (rows.length === 0) {
-      return res.send('<h2>Reset link is invalid or has expired.</h2>');
+      return res.send('<h2>Reset link is invalid or expired.</h2>');
     }
     return res.sendFile(path.join(__dirname, '../public/reset_password.html'));
   } catch (error) {
