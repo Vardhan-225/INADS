@@ -449,6 +449,8 @@ app.get('/test-db', async (req, res) => {
     return res.status(500).send('Database connection failed');
   }
 });
+// Load environment variables from .env
+
 
 // Start the server
 app.listen(PORT, () => {
