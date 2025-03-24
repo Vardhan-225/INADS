@@ -122,20 +122,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: "Password does not meet security requirements." });
     }
     // If MFA is enabled, generate MFA code
-    if (user.mfa_enabled) {
-      req.session.tempUser = { email: user.email, role: user.role };
-      if (user.mfa_type === 'email') {
-        const mfaCode = Math.floor(100000 + Math.random() * 900000).toString();
-        req.session.mfa = { code: mfaCode, expires: Date.now() + 5 * 60 * 1000 };
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'no-reply@example.com',
-          to: user.email,
-          subject: 'Your INADS MFA Code',
-          text: `Your one-time MFA code is: ${mfaCode}`
-        });
-        return res.json({ success: true, mfa: true, redirect: "/mfa.html" });
-      }
-    }
+   
     // If MFA is not enabled, complete login
     req.session.user = user.email;
     req.session.role = user.role;
