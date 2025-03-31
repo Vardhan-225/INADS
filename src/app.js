@@ -151,7 +151,36 @@ app.post('/api/auth/login', async (req, res) => {
  * MFA Verification Endpoint
  * Verifies the MFA code and returns role for routing.
  */
-
+app.post('/api/auth/verify-mfa', async (req, res) => {
+  const { code } = req.body;
+  if (!req.session.tempUser || !req.session.mfa) {
+    return res.status(400).json({ success: false, message: "No pending MFA verification." });
+  }
+  if (req.session.mfa.code) {
+    if (Date.now() > req.session.mfa.expires) {
+      return res.status(400).json({ success: false, message: "MFA code expired." });
+    }
+    if (req.session.mfa.code === code) {
+      req.session.user = req.session.tempUser.email;
+      req.session.role = req.session.tempUser.role;
+      req.session.tempUser = null;
+      req.session.mfa = null;
+      return res.json({ success: true, role: req.session.role, message: "OTP verified successfully!" });
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid MFA code." });
+    }
+  } else if (req.session.mfa.totp) {
+    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [req.session.tempUser.email]);
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: "User not found." });
+    }
+    const user = rows[0];
+    const verified = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: 'base32',
+      token: code,
+      window: 1
+    });
     if (verified) {
       req.session.user = req.session.tempUser.email;
       req.session.role = req.session.tempUser.role;
