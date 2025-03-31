@@ -107,7 +107,7 @@
     .logout-btn-sidebar:hover {
       background-color: #960000;
     }
-    /* Main Content Wrapper */
+    /* Main Content for Wrapper */
     .main-content-wrapper {
       padding-top: 90px;
       margin: 0 auto;
@@ -182,7 +182,7 @@
     }
   </style>
   <script>
-    // Prevent access if coming directly from logout
+    // Preventing access if coming directly from logout
     if (!document.referrer || document.referrer.endsWith('/logout')) {
       window.location.href = '/';
     }
@@ -277,7 +277,7 @@
     </div>
   </div>
 
-  <!-- JavaScript for Sidebar and Chart -->
+  <!-- JavaScript for both Sidebar and Chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     function toggleSidebar() {
