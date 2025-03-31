@@ -341,7 +341,7 @@ app.get('/admin-dashboard', (req, res) => {
 });
 
 /**
- * User Management Page (Admin Only)
+ * User Management Page for(Admin Only)
  */
 app.get('/user-management', (req, res) => {
   if (req.session.user && req.session.role === 'admin') {
