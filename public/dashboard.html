@@ -290,4 +290,29 @@
       setTimeout(() => { window.location.href = '/'; }, 500);
     }
     // Initialize placeholder chart
-    
+    const ctx = document.getElementById('anomaliesChart').getContext('2d');
+    const anomaliesChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+        datasets: [{
+          label: 'Anomalies Detected',
+          data: [2, 5, 3, 4, 7],
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+
