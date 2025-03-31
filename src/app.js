@@ -321,7 +321,7 @@ app.post('/reset-password/:token', async (req, res) => {
 });
 
 /**
- * Dashboard Route for Regular Users
+ * Dashboard Route for all the Regular Users
  */
 app.get('/dashboard', (req, res) => {
   if (req.session.user && req.session.role === 'user') {
@@ -331,7 +331,7 @@ app.get('/dashboard', (req, res) => {
 });
 
 /**
- * Admin Dashboard Route
+ * Dashboard Route for Admin
  */
 app.get('/admin-dashboard', (req, res) => {
   if (req.session.user && req.session.role === 'admin') {
