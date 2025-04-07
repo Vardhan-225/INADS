@@ -1,1 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INADS Admin Dashboard</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- Custom CSS -->
+  <style>
+    /* Global Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    /* Body styling */
+    body {
+      background-color: #0f0f0f;
+      color: #e0e0e0;
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    /* Navbar */
+    .navbar {
+      background: linear-gradient(135deg, #1a1a1a, #121416);
+      padding: 15px 20px;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      height: 70px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    .navbar-brand {
+      font-weight: bold;
+      color: #00c853 !important;
+      margin-left: 20px;
+      flex: 1;
+    }
+    .hamburger {
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #e0e0e0;
+      transition: color 0.3s ease;
+      margin-right: 20px;
+    }
+    .hamburger:hover {
+      color: #00c853;
+    }
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: 70px;
+      left: -300px;
+      width: 300px;
+      height: calc(100% - 70px);
+      background: linear-gradient(135deg, #1a1a1a, #0d0f13);
+      padding: 30px 0;
+      z-index: 900;
+      transition: left 0.5s ease, box-shadow 0.5s ease;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+    .sidebar.open {
+      left: 0;
+    }
+    .sidebar .list-group-item {
+      background: transparent;
+      color: #b0b0b0;
+      font-size: 1.1rem;
+      padding: 15px 20px;
+      transition: background 0.3s, color 0.3s;
+      display: flex;
+      align-items: center;
+      border-left: 3px solid transparent;
+    }
+    .sidebar .list-group-item i {
+      margin-right: 10px;
+      font-size: 1.2rem;
+    }
+    .sidebar .list-group-item:hover {
+      background: rgba(0,200,83,0.1);
+      color: #00c853;
+      border-left: 3px solid #00c853;
+    }
+    .sidebar .list-group-item.active {
+      background: #00c853;
+      color: #fff;
+      font-weight: bold;
+      border-left: 3px solid #00c853;
+    }
+    .logout-btn-sidebar {
+      background-color: #c80000;
+      border: none;
+      color: #fff;
+      width: calc(100% - 60px);
+      margin: 30px auto 0;
+      padding: 10px;
+      border-radius: 30px;
+      display: block;
+      transition: background-color 0.3s ease;
+      font-weight: bold;
+    }
+    .logout-btn-sidebar:hover {
+      background-color: #960000;
+    }
+    /* Main Content */
+    .main-content-wrapper {
+      padding-top: 90px;
+      margin: 0 auto;
+      width: 90%;
+      max-width: 1200px;
+      transition: margin-left 0.5s, width 0.5s;
+    }
+    .main-content-wrapper.sidebar-open {
+      margin-left: 300px;
+      width: calc(100% - 300px);
+    }
+    /* Card Styles */
+    .card {
+      background-color: #1e1e1e;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      overflow: hidden;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    .card-header {
+      background-color: #333;
+      font-weight: bold;
+      font-size: 1.2rem;
+      padding: 15px;
+      border-bottom: 1px solid #444;
+    }
+    .card-body {
+      padding: 20px;
+    }
+    .metrics-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .metric-card {
+      flex: 1 1 calc(30% - 20px);
+      text-align: center;
+      padding: 15px;
+    }
+    .metric-card .card-title {
+      font-size: 2rem;
+      color: #00c853;
+      margin-bottom: 10px;
+    }
+    .chart-container {
+      padding: 20px;
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .logs-table-container {
+      overflow-x: auto;
+    }
+    .logs-table {
+      width: 100%;
+    }
+    @media (max-width: 768px) {
+      .metrics-row {
+        flex-direction: column;
+      }
+      .main-content-wrapper {
+        margin-left: 0;
+        width: 100%;
+        padding-top: 100px;
+      }
+      .sidebar {
+        position: relative;
+        width: 100%;
+      }
+    }
+  </style>
+  <script>
+    // Prevent direct access from logout (if needed)
+    if (!document.referrer || document.referrer.endsWith('/logout')) {
+      window.location.href = '/';
+    }
+  </script>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
+    <a class="navbar-brand" href="#"><i class="fas fa-shield-virus"></i> INADS Admin Dashboard</a>
+  </nav>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="list-group">
+      <a href="#" class="list-group-item list-group-item-action active"><i class="fas fa-tachometer-alt"></i> Overview</a>
+      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-file-alt"></i> Logs</a>
+      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-chart-line"></i> Anomalies</a>
+      <a href="/user-management" class="list-group-item list-group-item-action"><i class="fas fa-users"></i> User Management</a>
+      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-cogs"></i> Settings</a>
+    </div>
+    <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
+  </div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content-wrapper" id="main-content">
+    <!-- Metrics Cards -->
+    <div class="metrics-row">
+      <div class="card metric-card">
+        <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Total Anomalies Detected</div>
+        <div class="card-body">
+          <h5 class="card-title">0</h5>
+          <p class="card-text">Anomalies detected by INADS.</p>
+        </div>
+      </div>
+      <div class="card metric-card">
+        <div class="card-header"><i class="fas fa-code"></i> DoS Attacks Detected</div>
+        <div class="card-body">
+          <h5 class="card-title">0</h5>
+          <p class="card-text">Total DoS attacks detected.</p>
+        </div>
+      </div>
+      <div class="card metric-card">
+        <div class="card-header"><i class="fas fa-shield-alt"></i> DDoS Attacks Detected</div>
+        <div class="card-body">
+          <h5 class="card-title">0</h5>
+          <p class="card-text">Total DDoS attacks detected.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Container -->
+    <div class="chart-container">
+      <div class="card-header"><i class="fas fa-chart-line"></i> Anomalies Over Time</div>
+      <div class="card-body">
+        <canvas id="anomaliesChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="card logs-table-container">
+      <div class="card-header"><i class="fas fa-list-alt"></i> Recent Logs</div>
+      <div class="card-body">
+        <table class="table table-dark table-striped logs-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Source IP</th>
+              <th>Destination IP</th>
+              <th>Event Type</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript for Sidebar and Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Toggle Sidebar
+    function toggleSidebar() {
+      const sidebar = document.getElementById("sidebar");
+      const mainContent = document.getElementById("main-content");
+      sidebar.classList.toggle("open");
+      mainContent.classList.toggle("sidebar-open");
+    }
+    // Logout Redirect
+    function logoutRedirect() {
+      setTimeout(() => { window.location.href = '/'; }, 500);
+    }
+    // Initialize Chart
+    const ctx = document.getElementById('anomaliesChart').getContext('2d');
+    const anomaliesChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+        datasets: [{
+          label: 'Anomalies Detected',
+          data: [2, 5, 3, 4, 7],
+          backgroundColor: 'rgba(0,200,83,0.2)',
+          borderColor: 'rgba(0,200,83,1)',
+          borderWidth: 2,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
 
