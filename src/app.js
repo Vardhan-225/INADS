@@ -63,9 +63,9 @@ const transporter = nodemailer.createTransport({
 
 // Password Validation Function
 function validatePassword(password) {
-  // Must be at least 9 characters, start with an uppercase letter,
+  // Must be at least 8 characters, start with an uppercase letter,
   // contain at least one digit and one special character.
-  const regex = /^(?=[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{9,}$/;
+  const regex = /^(?=[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
   return regex.test(password);
 }
 
