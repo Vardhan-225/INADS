@@ -216,11 +216,11 @@
   <div class="main-content-wrapper" id="main-content">
     <!-- Metrics Cards -->
     <div class="metrics-row">
-      <div class="card metric-card">
-        <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Total Anomalies Detected</div>
+      <div class="card metric-card" onclick="window.location.href='/logs.html'" style="cursor: pointer;">
+        <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Total Attacks Detected</div>
         <div class="card-body">
-          <h5 class="card-title">0</h5>
-          <p class="card-text">Anomalies detected by INADS.</p>
+          <h5 class="card-title" id="attack-count">0</h5>
+          <p class="card-text">Click to view detailed logs.</p>
         </div>
       </div>
       <div class="card metric-card">
@@ -236,6 +236,33 @@
           <h5 class="card-title">0</h5>
           <p class="card-text">Total DDoS attacks detected.</p>
         </div>
+      </div>
+    </div>
+
+    <div class="text-center mb-4">
+      <button id="runDetectionBtn" class="btn btn-success">
+        <i class="fas fa-bolt"></i> Run Detection
+      </button>
+      <p id="detectionStatus" style="margin-top: 10px; color: #00e676; font-weight: bold;"></p>
+    </div>
+
+    <div class="card logs-table-container">
+      <div class="card-header"><i class="fas fa-microscope"></i> Core Layer Detection Preview</div>
+      <div class="card-body">
+        <table class="table table-dark table-striped logs-table" id="detectionPreviewTable">
+          <thead>
+            <tr>
+              <th>Index</th>
+              <th>Global</th>
+              <th>Edge</th>
+              <th>Device</th>
+              <th>Fused</th>
+              <th>Prediction</th>
+              <th>True</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
 
@@ -313,7 +340,49 @@
         }
       }
     });
+    
+    fetch('/api/logs/attacks')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("attack-count").innerText = data.total ?? "0";
+      })
+      .catch(err => console.error('Failed to load attack count:', err));
+
+
+    document.getElementById("runDetectionBtn").addEventListener("click", () => {
+      const statusText = document.getElementById("detectionStatus");
+      statusText.textContent = "Running core layer detection...";
+
+      console.debug("Initiating core detection request to /api/core-detection...");
+      fetch('/api/core-detection')
+        .then(res => {
+          console.debug("Response received:", res);
+          return res.json();
+        })
+        .then(data => {
+          console.debug("Parsed detection data:", data);
+          const tableBody = document.getElementById("detectionPreviewTable").querySelector("tbody");
+          tableBody.innerHTML = "";
+          data.slice(0, 10).forEach(row => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${row.index}</td>
+              <td>${row.global_conf.toFixed(4)}</td>
+              <td>${row.edge_conf.toFixed(4)}</td>
+              <td>${row.device_conf.toFixed(4)}</td>
+              <td>${row.fused_score.toFixed(4)}</td>
+              <td>${row.predicted_label}</td>
+              <td>${row.true_label}</td>
+            `;
+            tableBody.appendChild(tr);
+          });
+          statusText.textContent = "Detection complete.";
+        })
+        .catch(err => {
+          statusText.textContent = "Detection failed.";
+          console.error("Detection error:", err);
+        });
+    });
   </script>
 </body>
 </html>
-

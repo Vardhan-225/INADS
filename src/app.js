@@ -23,6 +23,7 @@ const nodemailer = require('nodemailer');
 const speakeasy = require('speakeasy');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); // For rate limiting
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // Load environment variables from .env
 require('dotenv').config({
@@ -31,6 +32,7 @@ require('dotenv').config({
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const FLASK_PORT = process.env.FLASK_PORT || 5001;
 
 // Create MySQL connection pool
 const db = mysql.createPool({
@@ -80,13 +82,49 @@ app.use(bodyParser.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false, // set to true if using HTTPS
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 //1 hour
-  }
+  saveUninitialized: false
 }));
+
+// Debug middleware for core detection
+app.use('/api/core-detection', (req, res, next) => {
+  console.log(`[INCOMING REQUEST] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Proxy route for core detection
+app.use('/api/core-detection', createProxyMiddleware({
+  target: `http://127.0.0.1:${FLASK_PORT}`,
+  changeOrigin: true,
+  pathRewrite: (path, req) => {
+    console.log(`[REWRITE] incoming path: ${path}`);
+    return '/detect';
+  },
+  logLevel: 'debug',
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`[PROXY] ${req.method} ${req.originalUrl} → http://127.0.0.1:${FLASK_PORT}/detect`);
+    console.log(`[HEADERS]:`, JSON.stringify(req.headers, null, 2));
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    console.log(`[PROXY RESPONSE] Status Code: ${proxyRes.statusCode}`);
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err.stack || err.message);
+    res.status(500).json({ error: 'Core detection server is unavailable.' });
+  }
+ }));
+// Metrics route for attack logs
+app.get('/api/logs/attacks', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+  try {
+    const [rows] = await db.execute("SELECT id FROM anomalies WHERE label_pred = 1");
+    res.json({ total: rows.length, dos: 0, ddos: 0 });
+  } catch (err) {
+    console.error("Failed to fetch metrics:", err);
+    res.status(500).json({ error: "Failed to fetch attack metrics" });
+  }
+});
 
 // Rate Limiter for Forgot Password endpoint
 const forgotPasswordLimiter = rateLimit({
@@ -116,10 +154,6 @@ app.post('/api/auth/login', async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
-    }
-    // Validate password requirements (if desired)
-    if (!validatePassword(password)) {
-      return res.status(400).json({ success: false, message: "Password does not meet security requirements." });
     }
     // If MFA is enabled, generate MFA code
     if (user.mfa_enabled) {
@@ -450,6 +484,7 @@ app.get('/test-db', async (req, res) => {
   }
 });
 // Load environment variables from .env
+
 
 
 // Start the server
