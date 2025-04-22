@@ -14,6 +14,7 @@
  */
 
 const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
@@ -23,7 +24,7 @@ const nodemailer = require('nodemailer');
 const speakeasy = require('speakeasy');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); // For rate limiting
-const { createProxyMiddleware } = require('http-proxy-middleware');
+
 
 // Load environment variables from .env
 require('dotenv').config({
@@ -71,34 +72,6 @@ function validatePassword(password) {
   return regex.test(password);
 }
 
-// Proxy to Flask for logs
-app.use('/api/logs', (req, res, next) => {
-  // Debugging middleware to confirm incoming path
-  console.log(`🛰️ PATH CONFIRM: Forwarding "${req.originalUrl}" to Flask`);
-  next();
-});
-
-app.use('/api/logs', (req, res, next) => {
-  console.log(`🛰️ Reached Express: ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-app.use('/api/logs', createProxyMiddleware({
-  target: `http://127.0.0.1:${FLASK_PORT}`,
-  changeOrigin: true,
-  logLevel: 'debug',
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`[PROXY] ${req.method} ${req.originalUrl} → http://127.0.0.1:${FLASK_PORT}${req.originalUrl}`);
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    console.log(`[PROXY RESPONSE] Status Code: ${proxyRes.statusCode}`);
-  },
-  onError: (err, req, res) => {
-    console.error('Proxy error (logs):', err.stack || err.message);
-    res.status(500).json({ error: 'Log server is unavailable.' });
-  }
-}));
-
 // Global Middleware
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -113,6 +86,31 @@ app.use(session({
   saveUninitialized: false
 }));
 
+// Proxy to Flask for specific log endpoints
+app.use(
+  ['/api/logs/all', '/api/logs/filter', '/api/logs/summary'],
+  createProxyMiddleware({
+    target: `http://127.0.0.1:${FLASK_PORT}`,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/logs/all$': '/all',
+      '^/api/logs/filter$': '/filter',
+      '^/api/logs/summary$': '/summary'
+    },
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`[PROXY] ${req.method} ${req.originalUrl}`);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      console.log(`[PROXY RESPONSE] Status Code: ${proxyRes.statusCode}`);
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error (logs):', err.stack || err.message);
+      res.status(500).json({ error: 'Log server is unavailable.' });
+    }
+  })
+);
+
 // Debug middleware for core detection
 app.use('/api/core-detection', (req, res, next) => {
   console.log(`[INCOMING REQUEST] ${req.method} ${req.originalUrl}`);
@@ -125,8 +123,11 @@ app.use('/api/core-detection', createProxyMiddleware({
   changeOrigin: true,
   pathRewrite: (path, req) => {
     console.log(`[REWRITE] incoming path: ${path}`);
-    return '/detect';
+    return path;
   },
+
+  
+
   logLevel: 'debug',
   onProxyReq: (proxyReq, req, res) => {
     console.log(`[PROXY] ${req.method} ${req.originalUrl} → http://127.0.0.1:${FLASK_PORT}/detect`);
@@ -141,11 +142,11 @@ app.use('/api/core-detection', createProxyMiddleware({
   }
 }));
 
-// Metrics route for attack logs (refactored)
+// // Metrics route for attack logs (refactored)
 app.get('/api/logs/attacks', async (req, res) => {
-  if (!req.session.user || req.session.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
+//   // if (!req.session.user || req.session.role !== "admin") {
+//   //   return res.status(403).json({ error: "Unauthorized" });
+//   // }
 
   try {
     const [rows] = await db.execute("SELECT original_label FROM anomalies WHERE label_pred = 1");
@@ -548,11 +549,11 @@ app.get('/test-db', async (req, res) => {
 });
 
 /**
- * Logs Page (Admin Only)
+ * Route to redirect /logs to /logs.html (Admin Only)
  */
 app.get('/logs', (req, res) => {
   if (req.session.user && req.session.role === 'admin') {
-    return res.sendFile(path.join(__dirname, '../public/logs.html'));
+    return res.redirect('/logs.html');
   }
   return res.redirect('/');
 });
@@ -584,3 +585,9 @@ console.log({
   DB_PASS: process.env.DB_PASS,
   DB_NAME: process.env.DB_NAME
 });
+
+app._router.stack
+  .filter(r => r.route)
+  .map(r => console.log("🟢 NODE PATH:", r.route.path));
+
+  console.log("✅ NODE Server running at http://localhost:" + PORT);

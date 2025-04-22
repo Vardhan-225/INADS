@@ -341,7 +341,7 @@
       }
     });
     
-    fetch('/api/logs/attacks')
+    fetch("/api/logs/attacks", { credentials: "include" })
       .then(res => res.json())
       .then(data => {
         document.getElementById("attack-count").innerText = data.total ?? "0";

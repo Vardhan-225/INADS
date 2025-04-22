@@ -1,20 +1,14 @@
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
 from detection_utils import run_detection_pipeline
 from config import MYSQL_CONFIG
 import mysql.connector
 import os
 
+from flask_detection.detect_and_log import detect_log_blueprint
+
 app = Flask(__name__)
 CORS(app)
-
-# Set up MySQL connection (basic example)
-db_conn = mysql.connector.connect(
-    host=MYSQL_CONFIG["host"],
-    user=MYSQL_CONFIG["user"],
-    password=MYSQL_CONFIG["password"],
-    database=MYSQL_CONFIG["database"]
-)
 
 @app.route("/status", methods=["GET"])
 def status():
@@ -30,20 +24,19 @@ def detect():
             print("⚠️ Unexpected result structure from pipeline")
             raise ValueError("run_detection_pipeline() must return a list of dictionaries.")
 
-        results = output
-
-        # Persist current run into anomalies table
         conn = mysql.connector.connect(**MYSQL_CONFIG)
         cursor = conn.cursor()
+
         # Clear old logs
-        cursor.execute("TRUNCATE TABLE anomalies")
-        # Insert new results
+        cursor.execute("TRUNCATE TABLE logs")
+
+        # Insert new detection results
         insert_query = """
-            INSERT INTO anomalies 
+            INSERT INTO logs 
               (idx, global_conf, edge_conf, device_conf, fused_score, label_pred, label_true, original_label)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
-        for r in results:
+        for r in output:
             cursor.execute(insert_query, (
                 r["index"],
                 r["global_conf"],
@@ -58,31 +51,14 @@ def detect():
         cursor.close()
         conn.close()
 
-        print(f"✅ Returning {len(results[:10])} results after DB update")
-        return jsonify(results[:10])  # Return first 10
+        return jsonify(output[:10])
     except Exception as e:
         import traceback
         print("❌ DETECTION SERVER ERROR:")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-@app.route("/logs/anomalies", methods=["GET"])
-def get_logs():
-    try:
-        conn = mysql.connector.connect(**MYSQL_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM anomalies ORDER BY detected_at DESC LIMIT 1000")
-        logs = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return jsonify(logs)
-    except Exception as e:
-        import traceback
-        print("❌ ERROR FETCHING LOGS:")
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-from detect_and_log import detect_log_blueprint
+# Mount logs blueprint
 app.register_blueprint(detect_log_blueprint, url_prefix="/api/logs")
 
 if __name__ == "__main__":
