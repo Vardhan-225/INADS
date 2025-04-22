@@ -16,6 +16,8 @@ def run_detection_pipeline():
     df = pd.read_csv(DATA_PATH)
     print("Dataset loaded. Shape:", df.shape)
 
+    df["Original_Label"] = df["Label"] if "Label" in df.columns else "Unknown"
+
     if "Binary_Label" not in df.columns:
         df["Binary_Label"] = np.where(df["Label"].str.lower() == "benign", 0, 1)
 
@@ -110,7 +112,8 @@ def run_detection_pipeline():
             "device_conf": float(attack_conf_device[i]),
             "fused_score": float(fused_score[i]),
             "predicted_label": int(fused_label[i]),
-            "true_label": int(y_true[i])
+            "true_label": int(y_true[i]),
+            "original_label": str(df["Original_Label"].iloc[i])
         })
 
     print(f"✔️ Pipeline executed, result count: {len(results)}")

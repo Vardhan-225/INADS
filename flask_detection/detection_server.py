@@ -40,8 +40,8 @@ def detect():
         # Insert new results
         insert_query = """
             INSERT INTO anomalies 
-              (idx, global_conf, edge_conf, device_conf, fused_score, label_pred, label_true)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+              (idx, global_conf, edge_conf, device_conf, fused_score, label_pred, label_true, original_label)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         for r in results:
             cursor.execute(insert_query, (
@@ -51,7 +51,8 @@ def detect():
                 r["device_conf"],
                 r["fused_score"],
                 r["predicted_label"],
-                r["true_label"]
+                r["true_label"],
+                r.get("original_label", "Unknown")
             ))
         conn.commit()
         cursor.close()
@@ -65,6 +66,25 @@ def detect():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/logs/anomalies", methods=["GET"])
+def get_logs():
+    try:
+        conn = mysql.connector.connect(**MYSQL_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM anomalies ORDER BY detected_at DESC LIMIT 1000")
+        logs = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(logs)
+    except Exception as e:
+        import traceback
+        print("❌ ERROR FETCHING LOGS:")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+from detect_and_log import detect_log_blueprint
+app.register_blueprint(detect_log_blueprint, url_prefix="/api/logs")
+
 if __name__ == "__main__":
     port = int(os.getenv("FLASK_PORT", "5001"))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=5001)

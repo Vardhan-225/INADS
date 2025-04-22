@@ -71,6 +71,34 @@ function validatePassword(password) {
   return regex.test(password);
 }
 
+// Proxy to Flask for logs
+app.use('/api/logs', (req, res, next) => {
+  // Debugging middleware to confirm incoming path
+  console.log(`🛰️ PATH CONFIRM: Forwarding "${req.originalUrl}" to Flask`);
+  next();
+});
+
+app.use('/api/logs', (req, res, next) => {
+  console.log(`🛰️ Reached Express: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+app.use('/api/logs', createProxyMiddleware({
+  target: `http://127.0.0.1:${FLASK_PORT}`,
+  changeOrigin: true,
+  logLevel: 'debug',
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`[PROXY] ${req.method} ${req.originalUrl} → http://127.0.0.1:${FLASK_PORT}${req.originalUrl}`);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    console.log(`[PROXY RESPONSE] Status Code: ${proxyRes.statusCode}`);
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error (logs):', err.stack || err.message);
+    res.status(500).json({ error: 'Log server is unavailable.' });
+  }
+}));
+
 // Global Middleware
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -111,19 +139,54 @@ app.use('/api/core-detection', createProxyMiddleware({
     console.error('Proxy error:', err.stack || err.message);
     res.status(500).json({ error: 'Core detection server is unavailable.' });
   }
- }));
-// Metrics route for attack logs
+}));
+
+// Metrics route for attack logs (refactored)
 app.get('/api/logs/attacks', async (req, res) => {
-  if (!req.session.user) {
+  if (!req.session.user || req.session.role !== "admin") {
     return res.status(403).json({ error: "Unauthorized" });
   }
+
   try {
-    const [rows] = await db.execute("SELECT id FROM anomalies WHERE label_pred = 1");
-    res.json({ total: rows.length, dos: 0, ddos: 0 });
+    const [rows] = await db.execute("SELECT original_label FROM anomalies WHERE label_pred = 1");
+
+    const summary = {
+      total: rows.length,
+      dos: 0,
+      ddos: 0,
+      infiltration: 0,
+      brute_force: 0
+    };
+
+    rows.forEach(row => {
+      const label = row.original_label?.toLowerCase() || '';
+      if (label.includes('dos')) summary.dos++;
+      if (label.includes('ddos')) summary.ddos++;
+      if (label.includes('infilteration')) summary.infiltration++;
+      if (label.includes('brute') || label.includes('ssh')) summary.brute_force++;
+    });
+
+    res.json(summary);
   } catch (err) {
-    console.error("Failed to fetch metrics:", err);
-    res.status(500).json({ error: "Failed to fetch attack metrics" });
+    console.error("Failed to fetch attack logs:", err);
+    res.status(500).json({ error: "Failed to fetch attack logs" });
   }
+});
+
+// Route for metrics page (admin only)
+app.get('/metrics', (req, res) => {
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/metrics.html'));
+  }
+  return res.redirect('/');
+});
+
+// Route for analysis page (admin only)
+app.get('/analysis', (req, res) => {
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/analysis.html'));
+  }
+  return res.redirect('/');
 });
 
 // Rate Limiter for Forgot Password endpoint
@@ -483,9 +546,32 @@ app.get('/test-db', async (req, res) => {
     return res.status(500).send('Database connection failed');
   }
 });
-// Load environment variables from .env
+
+/**
+ * Logs Page (Admin Only)
+ */
+app.get('/logs', (req, res) => {
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/logs.html'));
+  }
+  return res.redirect('/');
+});
+
+/**
+ * Serve logs.html as a protected route (Admin Only)
+ */
+app.get('/logs.html', (req, res) => {
+  if (req.session.user && req.session.role === 'admin') {
+    return res.sendFile(path.join(__dirname, '../public/logs.html'));
+  }
+  return res.redirect('/');
+});
 
 
+app.use((req, res, next) => {
+  console.warn(`❌ UNHANDLED → ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ error: 'Not found at Express level', path: req.originalUrl });
+});
 
 // Start the server
 app.listen(PORT, () => {

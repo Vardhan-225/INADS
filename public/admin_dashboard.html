@@ -226,14 +226,14 @@
       <div class="card metric-card">
         <div class="card-header"><i class="fas fa-code"></i> DoS Attacks Detected</div>
         <div class="card-body">
-          <h5 class="card-title">0</h5>
+          <h5 class="card-title" id="dos-count">0</h5>
           <p class="card-text">Total DoS attacks detected.</p>
         </div>
       </div>
       <div class="card metric-card">
         <div class="card-header"><i class="fas fa-shield-alt"></i> DDoS Attacks Detected</div>
         <div class="card-body">
-          <h5 class="card-title">0</h5>
+          <h5 class="card-title" id="ddos-count">0</h5>
           <p class="card-text">Total DDoS attacks detected.</p>
         </div>
       </div>
@@ -345,6 +345,8 @@
       .then(res => res.json())
       .then(data => {
         document.getElementById("attack-count").innerText = data.total ?? "0";
+        document.getElementById("dos-count").innerText = data.dos ?? "0";
+        document.getElementById("ddos-count").innerText = data.ddos ?? "0";
       })
       .catch(err => console.error('Failed to load attack count:', err));
 
