@@ -513,7 +513,24 @@ app.post('/api/admin/add-user', async (req, res) => {
 /**
  * Edit an Existing User (Admin Only)
  */
-
+ <div id="editUserModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeEditModal()">&times;</span>
+      <h3>Edit User</h3>
+      <form id="edit-user-form">
+        <!-- Hidden field for email -->
+        <input type="hidden" id="edit-email" name="email">
+        <label for="edit-password">Password (leave blank to keep unchanged):</label>
+        <input type="password" id="edit-password" name="password" placeholder="New password (optional)">
+        <label for="edit-role">Role:</label>
+        <select id="edit-role" name="role" required>
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button type="submit">Update User</button>
+      </form>
+    </div>
+  </div>
 /**
  * Test Database Connection
  */
