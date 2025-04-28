@@ -574,3 +574,20 @@ app.use((req, res, next) => {
   res.status(404).json({ error: 'Not found at Express level', path: req.originalUrl });
 });
 
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
+});
+
+console.log({
+  DB_HOST: process.env.DB_HOST,
+  DB_USER: process.env.DB_USER,
+  DB_PASS: process.env.DB_PASS,
+  DB_NAME: process.env.DB_NAME
+});
+
+app._router.stack
+  .filter(r => r.route)
+  .map(r => console.log("🟢 NODE PATH:", r.route.path));
+
+  console.log("✅ NODE Server running at http://localhost:" + PORT);
