@@ -513,27 +513,6 @@ app.post('/api/admin/add-user', async (req, res) => {
 /**
  * Edit an Existing User (Admin Only)
  */
-app.put('/api/admin/edit-user', async (req, res) => {
-  const { email, password, role } = req.body;
-  if (!req.session.user || req.session.role !== 'admin') {
-    return res.status(403).json({ success: false, message: "Unauthorized" });
-  }
-  try {
-    if (password) {
-      if (!validatePassword(password)) {
-        return res.status(400).json({ success: false, message: "Password must be at least 8 characters long, start with an uppercase letter, and contain at least one digit and one special character." });
-      }
-      const hashedPassword = await bcrypt.hash(password, 10);
-      await db.execute('UPDATE users SET password = ?, role = ? WHERE email = ?', [hashedPassword, role, email]);
-    } else {
-      await db.execute('UPDATE users SET role = ? WHERE email = ?', [role, email]);
-    }
-    return res.status(200).send('User updated successfully!');
-  } catch (error) {
-    console.error('Error updating user:', error);
-    return res.status(500).send('Error updating user');
-  }
-});
 
 /**
  * Test Database Connection
