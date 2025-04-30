@@ -102,6 +102,33 @@
   <!-- Main Content -->
   <div class="main-content-wrapper" id="main-content">
     <div class="container-fluid">
+      <!-- Metrics Cards -->
+      <div class="row text-center mb-4">
+        <div class="col-6 col-md-3">
+          <div class="bg-dark rounded p-3 border border-success">
+            <div class="fs-4 fw-bold text-success" id="tp-count">0</div>
+            <div class="small text-uppercase text-white-50">True Positives</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="bg-dark rounded p-3 border border-danger">
+            <div class="fs-4 fw-bold text-danger" id="fp-count">0</div>
+            <div class="small text-uppercase text-white-50">False Positives</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mt-3 mt-md-0">
+          <div class="bg-dark rounded p-3 border border-warning">
+            <div class="fs-4 fw-bold text-warning" id="fn-count">0</div>
+            <div class="small text-uppercase text-white-50">False Negatives</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mt-3 mt-md-0">
+          <div class="bg-dark rounded p-3 border border-secondary">
+            <div class="fs-4 fw-bold text-white" id="tn-count">0</div>
+            <div class="small text-uppercase text-white-50">True Negatives</div>
+          </div>
+        </div>
+      </div>
       <!-- Chart -->
       <div class="card card-chart mb-4">
         <div class="card-header"><i class="fas fa-chart-line me-2"></i>Anomalies Over Time</div>
@@ -164,10 +191,43 @@
         const labels = data.map(r => r.time_bucket),
               counts = data.map(r => r.count);
         new Chart($('#anomaliesChart')[0].getContext('2d'), {
-          type:'line', data:{labels,datasets:[{
-            label:'Anomalies', data:counts,
-            borderColor:'rgba(0,200,83,1)', backgroundColor:'rgba(0,200,83,0.2)', fill:true
-          }]}
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Anomalies', data: counts,
+              borderColor: 'rgba(0,200,83,1)', backgroundColor: 'rgba(0,200,83,0.2)', fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            interaction: {
+              mode: 'index',
+              intersect: false,
+            },
+            plugins: {
+              tooltip: {
+                mode: 'nearest',
+                intersect: false,
+              },
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: '#ccc'
+                }
+              },
+              x: {
+                ticks: {
+                  color: '#ccc'
+                }
+              }
+            }
+          }
         });
       })
       .catch(err => {
@@ -182,7 +242,19 @@
         ajax:{
           url:'http://localhost:5001/api/logs/anomalies',
           dataSrc: function(json) {
+            let tp = 0, fp = 0, fn = 0, tn = 0;
             if (Array.isArray(json)) {
+              json.forEach(row => {
+                const p = parseInt(row.label_pred), t = parseInt(row.label_true);
+                if (p === 1 && t === 1) tp++;
+                else if (p === 1 && t === 0) fp++;
+                else if (p === 0 && t === 1) fn++;
+                else tn++;
+              });
+              $('#tp-count').text(tp);
+              $('#fp-count').text(fp);
+              $('#fn-count').text(fn);
+              $('#tn-count').text(tn);
               return json;
             } else {
               console.error("Expected array, received:", json);
