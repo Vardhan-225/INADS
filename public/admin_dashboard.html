@@ -14,6 +14,15 @@
     *, *::before, *::after {
       box-sizing: border-box;
     }
+    .card-title {
+    font-size: 2rem;
+    color: #00c853;
+    margin-bottom: 10px;
+    transition: transform 0.3s ease-in-out;
+    }
+    .card-title:hover {
+    transform: scale(1.2);
+    }
     /* Body styling */
     body {
       background-color: #0f0f0f;
@@ -34,7 +43,7 @@
       display: flex;
       align-items: center;
       height: 70px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      box-shadow: 0 2px 10px rgba(8, 7, 7, 0.5);
     }
     .navbar-brand {
       font-weight: bold;
@@ -192,6 +201,92 @@
       window.location.href = '/';
     }
   </script>
+  <script>
+  // Live auto-refresh for summary counts, preview table, and timeline chart
+  function updateActivityStatus(message) {
+    document.getElementById("activityStatus").textContent = "Status: " + message;
+  }
+  function animateDelta(id, newValue) {
+    const el = document.getElementById(id);
+    const current = parseInt(el.innerText);
+    if (!isNaN(current) && newValue !== current) {
+      el.innerText = newValue;
+      el.style.transition = "transform 0.3s, color 0.3s";
+      el.style.transform = "scale(1.4)";
+      el.style.color = "#ffd600";
+      setTimeout(() => {
+        el.style.transform = "scale(1)";
+        el.style.color = "#00c853";
+      }, 300);
+    } else {
+      el.innerText = newValue;
+    }
+  }
+
+  function refreshAllMetrics() {
+    const startTime = performance.now();
+    document.getElementById("refreshSpinner").style.visibility = "visible";
+    updateActivityStatus("Auto-refreshing metrics...");
+
+    const summaryPromise = fetch("http://localhost:5001/api/logs/summary", { credentials: "include" })
+      .then(res => res.json())
+      .then(summaryData => {
+        animateDelta("attack-count-value", summaryData.total);
+        animateDelta("dos-count-value", summaryData.dos);
+        animateDelta("ddos-count-value", summaryData.ddos);
+        updateActivityStatus("Metrics updated.");
+      });
+
+    const previewPromise = fetch("http://localhost:5001/api/logs/preview", { credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        const tableBody = document.getElementById("detectionPreviewTable").querySelector("tbody");
+        tableBody.innerHTML = "";
+        data.forEach(row => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.idx}</td>
+            <td>${row.global_conf.toFixed(4)}</td>
+            <td>${row.edge_conf.toFixed(4)}</td>
+            <td>${row.device_conf.toFixed(4)}</td>
+            <td>${row.fused_score.toFixed(4)}</td>
+            <td>${row.label_pred}</td>
+            <td>${row.label_true}</td>
+            <td>${row.original_label ?? "-"}</td>
+          `;
+          tableBody.appendChild(tr);
+        });
+        updateActivityStatus("Preview updated.");
+      });
+
+      const timelinePromise = fetch("http://localhost:5001/api/logs/timeline")
+      .then(res => res.json())
+      .then(timelineData => {
+        // Use object-based data points for spike coloring and aggregation
+        const threshold = 15000;
+        anomaliesChart.data.datasets[0].data = timelineData.map(row => ({
+          x: row.time_bucket.trim(),
+          y: row.count,
+          borderColor: row.count > threshold ? '#ff1744' : '#00c853',
+          backgroundColor: row.count > threshold ? '#ff1744' : '#00c853',
+          pointRadius: 3,
+          pointHoverRadius: 5
+        }));
+        anomaliesChart.data.labels = timelineData.map(row => row.time_bucket.trim());
+        anomaliesChart.update();
+        updateActivityStatus("Timeline chart updated.");
+      });
+      // Only when all finish — hide spinner and update status, and log response time
+      Promise.all([summaryPromise, previewPromise, timelinePromise])
+        .finally(() => {
+          document.getElementById("refreshSpinner").style.visibility = "hidden";
+          const duration = (performance.now() - startTime).toFixed(2);
+          updateActivityStatus(`Idle (refreshed in ${duration} ms)`);
+        });
+    }
+
+</script>
+</script>
 </head>
 <body>
   <!-- Navbar -->
@@ -204,8 +299,8 @@
   <div class="sidebar" id="sidebar">
     <div class="list-group">
       <a href="#" class="list-group-item list-group-item-action active"><i class="fas fa-tachometer-alt"></i> Overview</a>
-      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-file-alt"></i> Logs</a>
-      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-chart-line"></i> Anomalies</a>
+      <a href="/logs.html" class="list-group-item list-group-item-action"><i class="fas fa-file-alt"></i> Logs</a>
+      <a href="/anomalies.html" class="list-group-item list-group-item-action"><i class="fas fa-chart-line"></i> Anomalies</a>
       <a href="/user-management" class="list-group-item list-group-item-action"><i class="fas fa-users"></i> User Management</a>
       <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-cogs"></i> Settings</a>
     </div>
@@ -219,21 +314,21 @@
       <div class="card metric-card" onclick="window.location.href='/logs.html'" style="cursor: pointer;">
         <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Total Attacks Detected</div>
         <div class="card-body">
-          <h5 class="card-title" id="attack-count">0</h5>
+          <h5 class="card-title" id="attack-count"><span id="attack-count-value">0</span></h5>
           <p class="card-text">Click to view detailed logs.</p>
         </div>
       </div>
       <div class="card metric-card">
         <div class="card-header"><i class="fas fa-code"></i> DoS Attacks Detected</div>
         <div class="card-body">
-          <h5 class="card-title" id="dos-count">0</h5>
+          <h5 class="card-title" id="dos-count"><span id="dos-count-value">0</span></h5>
           <p class="card-text">Total DoS attacks detected.</p>
         </div>
       </div>
       <div class="card metric-card">
         <div class="card-header"><i class="fas fa-shield-alt"></i> DDoS Attacks Detected</div>
         <div class="card-body">
-          <h5 class="card-title" id="ddos-count">0</h5>
+          <h5 class="card-title" id="ddos-count"><span id="ddos-count-value">0</span></h5>
           <p class="card-text">Total DDoS attacks detected.</p>
         </div>
       </div>
@@ -244,10 +339,20 @@
         <i class="fas fa-bolt"></i> Run Detection
       </button>
       <p id="detectionStatus" style="margin-top: 10px; color: #00e676; font-weight: bold;"></p>
+      <div class="d-flex align-items-center justify-content-center mt-3">
+        <span id="refreshSpinner"
+              class="spinner-border spinner-border-sm text-success mr-2"
+              role="status"
+              style="visibility: hidden;"
+              title="Refreshing metrics...">
+          <span class="sr-only">Refreshing...</span>
+        </span>
+        <p id="activityStatus" style="margin: 0; font-size: 1rem; font-weight: bold; color: #00e676;">Status: Idle</p>
+      </div>
     </div>
 
     <div class="card logs-table-container">
-      <div class="card-header"><i class="fas fa-microscope"></i> Core Layer Detection Preview</div>
+      <div class="card-header"><i class="fa-solid fa-magnifying-glass"></i> Top 10 attacks detected</div>
       <div class="card-body">
         <table class="table table-dark table-striped logs-table" id="detectionPreviewTable">
           <thead>
@@ -259,6 +364,7 @@
               <th>Fused</th>
               <th>Prediction</th>
               <th>True</th>
+              <th>Attack Type</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -274,35 +380,7 @@
       </div>
     </div>
 
-    <!-- Logs Table -->
-    <div class="card logs-table-container">
-      <div class="card-header"><i class="fas fa-list-alt"></i> Recent Logs</div>
-      <div class="card-body">
-        <table class="table table-dark table-striped logs-table">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Source IP</th>
-              <th>Destination IP</th>
-              <th>Event Type</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- JavaScript for Sidebar and Charts -->
+    <!-- JavaScript for Sidebar and Charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // Toggle Sidebar
@@ -321,10 +399,11 @@
     const anomaliesChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+        labels: [],
         datasets: [{
           label: 'Anomalies Detected',
-          data: [2, 5, 3, 4, 7],
+          data: [],
+          parsing: false,
           backgroundColor: 'rgba(0,200,83,0.2)',
           borderColor: 'rgba(0,200,83,1)',
           borderWidth: 2,
@@ -335,56 +414,91 @@
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { beginAtZero: true },
-          y: { beginAtZero: true }
-        }
+          x: {
+            type: 'category',
+            ticks: {
+              autoSkip: true,
+              maxRotation: 45,
+              minRotation: 0,
+            },
+            title: {
+              display: true,
+              text: 'Time (hh:mm:ss)'
+            }
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Anomalies Detected'
+            }
+          }
+        },
       }
     });
     
-    fetch("/api/logs/attacks", { credentials: "include" })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("attack-count").innerText = data.total ?? "0";
-        document.getElementById("dos-count").innerText = data.dos ?? "0";
-        document.getElementById("ddos-count").innerText = data.ddos ?? "0";
-      })
-      .catch(err => console.error('Failed to load attack count:', err));
+    // (Removed: duplicate timeline fetch block)
+    
+    // (Removed: duplicate summary fetch block)
 
 
     document.getElementById("runDetectionBtn").addEventListener("click", () => {
       const statusText = document.getElementById("detectionStatus");
       statusText.textContent = "Running core layer detection...";
+      document.getElementById("runDetectionBtn").disabled = true;
+      updateActivityStatus("Running detection...");
 
-      console.debug("Initiating core detection request to /api/core-detection...");
-      fetch('/api/core-detection')
-        .then(res => {
-          console.debug("Response received:", res);
-          return res.json();
+      fetch('http://localhost:5001/detect', { method: 'POST' })
+        .then(res => res.json())
+        .then(() => {
+          return fetch('http://localhost:5001/api/logs/preview');
         })
+        .then(res => res.json())
         .then(data => {
-          console.debug("Parsed detection data:", data);
           const tableBody = document.getElementById("detectionPreviewTable").querySelector("tbody");
           tableBody.innerHTML = "";
-          data.slice(0, 10).forEach(row => {
+          data.forEach(row => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
-              <td>${row.index}</td>
+              <td>${row.idx}</td>
               <td>${row.global_conf.toFixed(4)}</td>
               <td>${row.edge_conf.toFixed(4)}</td>
               <td>${row.device_conf.toFixed(4)}</td>
               <td>${row.fused_score.toFixed(4)}</td>
-              <td>${row.predicted_label}</td>
-              <td>${row.true_label}</td>
+              <td>${row.label_pred}</td>
+              <td>${row.label_true}</td>
             `;
             tableBody.appendChild(tr);
           });
+          updateActivityStatus("Preview updated.");
+          fetch("http://localhost:5001/api/logs/summary", { credentials: "include" })
+            .then(res => res.json())
+            .then(summaryData => {
+              animateDelta("attack-count-value", summaryData.total);
+              animateDelta("dos-count-value", summaryData.dos);
+              animateDelta("ddos-count-value", summaryData.ddos);
+              updateActivityStatus("Metrics updated.");
+            })
+            .catch(err => {
+              console.error('Failed to refresh attack counts after detection:', err);
+            });
           statusText.textContent = "Detection complete.";
+          document.getElementById("runDetectionBtn").disabled = false;
+          updateActivityStatus("Detection complete.");
         })
         .catch(err => {
           statusText.textContent = "Detection failed.";
+          document.getElementById("runDetectionBtn").disabled = false;
+          updateActivityStatus("Detection failed.");
           console.error("Detection error:", err);
         });
+    });
+
+    // On page load, fetch and populate the preview table
+    document.addEventListener("DOMContentLoaded", () => {
+    refreshAllMetrics();
     });
   </script>
 </body>
 </html>
+<!-- End of HTML Document -->

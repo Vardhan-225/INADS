@@ -2,14 +2,18 @@
 
 import os
 
-# Dataset and Model Paths
-BASE_DIR = "/Users/akashthanneeru/Desktop/INADS_Data/Models/Final"
-DATA_PATH = "/Users/akashthanneeru/Desktop/INADS_Data/Data/Indexed_Dataset_Cyclical_Encoded.csv"
+# ─── Paths ────────────────────────────────────────────────────────────────────
+BASE_DIR   = "/Users/akashthanneeru/Desktop/INADS_Data/Models/Final"
+DATA_PATH  = "/Users/akashthanneeru/Desktop/INADS_Data/Data/Indexed_Dataset_Cyclical_Encoded.csv"
 
-GLOBAL_MODEL = os.path.join(BASE_DIR, "Global", "xgb_global_model.pkl")
-EDGE_MODEL = os.path.join(BASE_DIR, "Edge", "LSTM", "edge_layer_lstm_best.keras")
-DEVICE_MODEL = os.path.join(BASE_DIR, "Device", "device_layer_mlp_model.h5")
+GLOBAL_MODEL_PATH = os.path.join(BASE_DIR, "Global", "xgb_global_model.pkl")
+EDGE_MODEL_PATH   = os.path.join(BASE_DIR, "Edge",   "LSTM", "edge_layer_lstm_best.keras")
+DEVICE_MODEL_PATH = os.path.join(BASE_DIR, "Device", "device_layer_mlp_model.h5")
 
+OUTPUT_CSV    = os.path.join(BASE_DIR, "core_layer_results.csv")
+RESULTS_DIR   = BASE_DIR
+
+# ─── Feature Lists ───────────────────────────────────────────────────────────
 GLOBAL_FEATURES = [
     "Flow Duration", "Flow Byts/s", "Flow IAT Mean", "Flow IAT Std", "Flow IAT Max",
     "Dst Port", "Protocol", "SYN Flag Cnt", "ACK Flag Cnt", "FIN Flag Cnt", "PSH Flag Cnt",
@@ -17,7 +21,6 @@ GLOBAL_FEATURES = [
     "Fwd Pkt Len Max", "Bwd Pkt Len Min", "TotLen Fwd Pkts", "TotLen Bwd Pkts",
     "Hour_sin", "Hour_cos", "Weekday_sin", "Weekday_cos"
 ]
-
 EDGE_FEATURES = [
     "Pkt Len Min", "Pkt Len Max", "Fwd Pkt Len Max", "Bwd Pkt Len Min",
     "Fwd Pkts/s", "Bwd Pkts/s", "Fwd IAT Mean"
@@ -31,10 +34,20 @@ DEVICE_FEATURES = [
     "Fwd Seg Size Avg", "Bwd Seg Size Avg", "Hour_sin", "Hour_cos"
 ]
 
-# Database Credentials
+# ─── Fusion Weights & Threshold ───────────────────────────────────────────────
+W_GLOBAL  = 0.3
+W_EDGE    = 0.3
+W_DEVICE  = 0.4
+THRESHOLD = 0.5
+
+# ─── Batch / Sleep Settings ─────────────────────────────────────────────────
+BATCH_INSERT_SIZE  = int(os.getenv("BATCH_SIZE", "10000"))
+SLEEP_INTERVAL_SEC = float(os.getenv("SLEEP_SEC", "0.1"))
+
+# ─── MySQL ────────────────────────────────────────────────────────────────────
 MYSQL_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "Catsanddogs#666",
-    "database": "INADS"
+    "host":     os.getenv("MYSQL_HOST",     "localhost"),
+    "user":     os.getenv("MYSQL_USER",     "root"),
+    "password": os.getenv("MYSQL_PASSWORD", "Catsanddogs#666"),
+    "database": os.getenv("MYSQL_DB",       "INADS"),
 }

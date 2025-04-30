@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   console.debug("📢 logs.js is LIVE!");
 
-  fetch("/api/logs/all", { credentials: "include" })
+  fetch("http://localhost:5001/api/logs/all", { credentials: "include" })
     .then((response) => {
       console.debug(`🛰️ Response status: ${response.status}`);
       if (!response.ok) {

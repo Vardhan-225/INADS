@@ -2,61 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>INADS Admin Dashboard</title>
-  <script>
-    function toggleSidebar() {
-      const sidebar = document.getElementById("sidebar");
-      const mainContent = document.getElementById("main-content");
-      sidebar.classList.toggle("open");
-      mainContent.classList.toggle("sidebar-open");
-    }
-
-    function logoutRedirect() {
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
-    }
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>INADS Logs</title>
   <!-- Bootstrap CSS v5.3 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
+
   <style>
-    /* Global dark theme */
+    /* ─── Global Dark Theme ───────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; }
     body {
-      background-color: #0f0f0f;
-      color: #e0e0e0;
-      font-family: 'Roboto', Arial, sans-serif;
-      margin: 0;
-      padding: 0;
+      background-color: #121212;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      margin: 0; padding: 0;
       overflow-x: hidden;
     }
-    /* Navbar */
+    a { text-decoration: none; }
+
+    /* ─── Navbar ───────────────────────────────────────────────────────────────── */
     .navbar {
       background: linear-gradient(135deg, #1a1a1a, #121416);
-      padding: 15px 20px;
-      position: fixed;
-      width: 100%;
-      top: 0;
-      z-index: 1000;
       height: 70px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      padding: 0 1rem;
+      position: fixed; top: 0; width: 100%; z-index: 1000;
+      display: flex; align-items: center;
     }
-    .navbar .navbar-brand {
-      color: #00c853 !important;
-      font-weight: bold;
-    }
-    .hamburger {
-      font-size: 1.5rem;
-      cursor: pointer;
-      color: #e0e0e0;
-      margin-right: 20px;
-      transition: color 0.3s;
-    }
-    .hamburger:hover { color: #00c853; }
-    /* Sidebar */
+    .navbar .navbar-brand { color: #00c853 !important; font-weight: bold; }
+
+    /* Sidebar Base Styles */
     .sidebar {
       position: fixed;
       top: 70px;
@@ -64,179 +39,339 @@
       width: 300px;
       height: calc(100% - 70px);
       background: linear-gradient(135deg, #1a1a1a, #0d0f13);
-      padding: 30px 0;
+      padding: 2rem 0;
       z-index: 900;
-      transition: left 0.5s ease, box-shadow 0.5s ease;
-      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+      transition: left 0.5s ease;
+      overflow-y: auto;
+      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.6);
     }
     .sidebar.open {
       left: 0;
     }
+    /* List Items */
+    .sidebar .list-group {
+      border: 1px solid #333;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      margin: 1rem 0 0 1rem;
+    }
     .sidebar .list-group-item {
       background: transparent;
       color: #b0b0b0;
-      font-size: 1.1rem;
-      padding: 15px 20px;
-      transition: background 0.3s, color 0.3s;
-      display: flex;
-      align-items: center;
       border-left: 3px solid transparent;
+      border-radius: 0 !important;
+      transition: background 0.3s, color 0.3s, border-left-color 0.3s;
     }
-    .sidebar .list-group-item i {
-      margin-right: 10px;
-      font-size: 1.2rem;
-    }
-    .sidebar .list-group-item:hover {
-      background: rgba(0,200,83,0.1);
-      color: #00c853;
-      border-left: 3px solid #00c853;
-    }
+    .sidebar .list-group-item:hover,
     .sidebar .list-group-item.active {
-      background: #00c853;
-      color: #fff;
-      font-weight: bold;
-      border-left: 3px solid #00c853;
+      background-color: #00c853 !important;
+      color: #ffffff !important;
+      border-left-color: #00c853 !important;
+      border-left-width: 5px !important;
     }
-    .sidebar .logout-btn-sidebar {
-      background-color: #c80000;
-      border: none;
-      color: #fff;
+    /* Logout Button */
+    .logout-btn-sidebar {
+      display: block;
       width: calc(100% - 60px);
-      margin: 30px auto 0;
-      padding: 10px;
-      border-radius: 30px;
+      margin: 1rem auto;
+      padding: 0.5rem;
+      background: #c80000;
+      color: #fff;
+      border: none;
+      border-radius: 1.5rem;
       font-weight: bold;
+      transition: background 0.3s;
     }
-    .sidebar .logout-btn-sidebar:hover { background-color: #960000; }
-    /* Main content */
+    .logout-btn-sidebar:hover {
+      background: #960000;
+    }
+    /* Hamburger Toggle */
+    .hamburger {
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #e0e0e0;
+      border: none;
+      background: transparent;
+      transition: color 0.3s ease;
+      margin-right: 1rem;
+    }
+    .hamburger:hover {
+      color: #00c853;
+    }
+
+    /* ─── Main Content ────────────────────────────────────────────────────────── */
     .main-content-wrapper {
-      padding-top: 90px;
-      margin-left: 0;
-      transition: margin-left 0.5s, width 0.5s;
-      width: 100%;
+      padding-top: 90px; margin-left: 0;
+      transition: margin-left 0.5s; width: 100%;
     }
     .main-content-wrapper.sidebar-open {
-      margin-left: 300px;
-      width: calc(100% - 300px);
+      margin-left: 300px; width: calc(100% - 300px);
     }
-    /* Sticky filters */
+
+    /* ─── Filter Panel ───────────────────────────────────────────────────────── */
     #filter-panel {
-      position: sticky;
-      top: 70px;
-      z-index: 100;
-      background: #121416;
-      padding: 1rem 0;
+      position: sticky; top: 70px; z-index: 100;
+      background: #121416; padding: 1rem;
       border-bottom: 1px solid #333;
     }
-    /* Table row colors */
-    .row-correct { background-color: #1a3d2f !important; }
-    .row-incorrect { background-color: #3d1a1a !important; }
-    .row-suspicious { background-color: #3d3a1a !important; }
+    #filter-panel .form-control,
+    #filter-panel .form-select {
+      background: #1e1e1e; color: #fff; border: none;
+    }
+    #apply-filters { width: 100%; }
 
-    /* Filter panel placeholder and focus */
-    #filter-panel .form-control::placeholder {
-      color: #888;
+    /* Placeholder text color */
+    ::placeholder {
+      color: #ccc !important;
       opacity: 1;
     }
-    #filter-panel .form-control:focus {
-      background-color: #1e1e1e;
-      outline: none;
+
+    /* ─── Table & Badges ─────────────────────────────────────────────────────── */
+    .table-responsive { margin-top: 1rem; }
+    .table-dark {
+      background-color: #1e1e1e; border-color: #333;
+    }
+    .badge.bg-danger { background-color: #e53935; }
+    .badge.bg-success { background-color: #43a047; }
+
+    /* ─── Row Highlighting ───────────────────────────────────────────────────── */
+    .row-correct      { background-color: #1a3d2f !important; }
+    .row-incorrect    { background-color: #3d1a1a !important; }
+    .row-suspicious   { background-color: #3d3a1a !important; }
+    .row-attack       { background-color: #4a0000 !important; }
+
+    @media (max-width: 768px) {
+      .sidebar { left: 0; width: 100%; position: relative; height: auto; }
+      .main-content-wrapper.sidebar-open { margin-left: 0; width:100%; }
     }
   </style>
+  <script>
+    function toggleSidebar() {
+      const sidebar     = document.getElementById('sidebar');
+      const mainContent = document.getElementById('main-content');
+      sidebar.classList.toggle('open');
+      mainContent.classList.toggle('sidebar-open');
+    }
+    function logoutRedirect() {
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('.hamburger').addEventListener('click', toggleSidebar);
+      document.querySelector('.logout-btn-sidebar').addEventListener('click', logoutRedirect);
+    });
+  </script>
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css"/>
 </head>
 <body>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
   <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark">
-    <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-    <a class="navbar-brand" href="admin_dashboard.html"><i class="fas fa-shield-virus"></i> INADS Logs</a>
+  <nav class="navbar navbar-dark">
+    <button class="hamburger" aria-label="Toggle sidebar">&#9776;</button>
+    <a class="navbar-brand" href="#">INADS Logs</a>
   </nav>
 
   <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="list-group">
-      <a href="admin_dashboard.html" class="list-group-item list-group-item-action"><i class="fas fa-tachometer-alt"></i> Overview</a>
-      <a href="logs.html" class="list-group-item list-group-item-action active"><i class="fas fa-file-alt"></i> Logs</a>
-      <a href="anomalies.html" class="list-group-item list-group-item-action"><i class="fas fa-chart-line"></i> Anomalies</a>
-      <a href="/user-management" class="list-group-item list-group-item-action"><i class="fas fa-users"></i> User Management</a>
-      <a href="#" class="list-group-item list-group-item-action"><i class="fas fa-cogs"></i> Settings</a>
+      <a href="admin_dashboard.html" class="list-group-item list-group-item-action">
+        <i class="fas fa-tachometer-alt me-2"></i> Overview
+      </a>
+      <a href="logs.html" class="list-group-item list-group-item-action active">
+        <i class="fas fa-file-alt me-2"></i> Logs
+      </a>
+      <a href="anomalies.html" class="list-group-item list-group-item-action">
+        <i class="fas fa-chart-line me-2"></i> Anomalies
+      </a>
+      <a href="/user-management" class="list-group-item list-group-item-action">
+        <i class="fas fa-users me-2"></i> Users
+      </a>
+      <a href="#" class="list-group-item list-group-item-action">
+        <i class="fas fa-cogs me-2"></i> Settings
+      </a>
     </div>
-    <button class="logout-btn-sidebar" onclick="logoutRedirect()">Logout</button>
-  </div>
+    <button class="logout-btn-sidebar" type="button">
+      <i class="fas fa-sign-out-alt me-1"></i> Logout
+    </button>
+  </aside>
 
   <!-- Main Content -->
   <div class="main-content-wrapper" id="main-content">
+
     <!-- Filter Panel -->
     <div id="filter-panel" class="container-fluid">
-      <div class="row g-3 align-items-center">
+      <div class="row g-2">
         <div class="col-md-2">
-          <div class="input-group">
-            <span class="input-group-text bg-transparent border-0">
-              <i class="fas fa-search text-light"></i>
-            </span>
-            <input type="text" id="filter-id" class="form-control bg-dark text-light border-0 rounded-pill" placeholder="Search ID..." autocomplete="off">
-          </div>
+          <input type="text" id="filter-id" class="form-control" placeholder="Search by Log ID…"/>
         </div>
         <div class="col-md-2">
-          <select id="filter-pred" class="form-select bg-dark text-light">
+          <select id="filter-pred" class="form-select">
             <option value="">Prediction</option>
             <option value="0">Benign</option>
             <option value="1">Attack</option>
           </select>
         </div>
         <div class="col-md-2">
-          <select id="filter-true" class="form-select bg-dark text-light">
+          <select id="filter-true" class="form-select">
             <option value="">Ground Truth</option>
             <option value="0">Benign</option>
             <option value="1">Attack</option>
           </select>
         </div>
         <div class="col-md-2">
-          <select id="filter-type" class="form-select bg-dark text-light">
+          <select id="filter-type" class="form-select">
             <option value="">Attack Type</option>
           </select>
         </div>
         <div class="col-md-2">
-          <input type="date" id="filter-date-from" class="form-control bg-dark text-light">
+          <input type="date" id="filter-date-from" class="form-control"/>
         </div>
         <div class="col-md-2">
-          <input type="date" id="filter-date-to" class="form-control bg-dark text-light">
+          <input type="date" id="filter-date-to" class="form-control"/>
         </div>
-        <div class="col-md-2">
-          <button id="apply-filters" class="btn btn-success w-100">Apply Filters</button>
+        <div class="col-md-12 d-flex justify-content-end gap-2 mt-2">
+          <button id="apply-filters" class="btn btn-success">Apply Filters</button>
+          <button id="clear-filters" class="btn btn-outline-light">Clear</button>
         </div>
       </div>
     </div>
 
-    <!-- Export Button -->
-    <div class="container-fluid mt-3">
-      <div class="d-flex justify-content-end mb-2">
-        <button class="btn btn-outline-success" onclick="downloadCSV()">Export Logs</button>
-      </div>
-      <!-- Logs Table -->
-      <div class="table-responsive">
-        <table id="logs-table" class="table table-dark table-striped">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Index</th>
-              <th>Global</th>
-              <th>Edge</th>
-              <th>Device</th>
-              <th>Fused</th>
-              <th>Pred</th>
-              <th>True</th>
-              <th>Attack Type</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody id="logs-table-body"></tbody>
-        </table>
-      </div>
+    <p class="text-end text-light px-3" id="logs-count"></p>
+
+    <!-- Export button -->
+    <div class="container-fluid mt-3 d-flex justify-content-end">
+      <button class="btn btn-outline-success" onclick="exportCSV()">Export CSV</button>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="table-responsive container-fluid">
+      <table class="table table-dark table-striped" id="logs-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Index</th><th>Global</th><th>Edge</th>
+            <th>Device</th><th>Fused</th><th>Pred</th><th>True</th>
+            <th>Type</th><th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="logs-table-body"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- DataTables JS -->
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+
+  <script>
+    // DataTables-based logic for logs
+    // Load attack types for filter dropdown
+    fetch('http://localhost:5001/api/logs/top10_attacks')
+      .then(r => r.json())
+      .then(data => {
+        const sel = document.getElementById('filter-type');
+        sel.innerHTML = '<option value="">Attack Type</option>';
+        data.forEach(row => {
+          const opt = document.createElement('option');
+          opt.value = row.attack;
+          opt.text = row.attack;
+          sel.appendChild(opt);
+        });
+      })
+      .catch(err => {
+        console.error("❌ Failed to load attack types:", err);
+      });
+  </script>
+
+  <script>
+  $(document).ready(function() {
+    // Initialize DataTable with server-side AJAX
+    const table = $('#logs-table').DataTable({
+      serverSide: true,
+      processing: true,
+      ajax: {
+        url: 'http://localhost:5001/api/logs/filter',
+        type: 'POST',
+        contentType: 'application/json',
+        data: function(d) {
+          return JSON.stringify({
+            draw: d.draw,
+            start: d.start,
+            length: d.length,
+            id: $('#filter-id').val() || null,
+            pred: $('#filter-pred').val() || null,
+            true: $('#filter-true').val() || null,
+            attack_type: $('#filter-type').val() || null,
+            date_from: $('#filter-date-from').val() || null,
+            date_to: $('#filter-date-to').val() || null
+          });
+        }
+      },
+      columns: [
+        { data: 'id', visible: false },
+        { data: 'idx', title: 'Index' },
+        { data: 'global_conf', title: 'Global', render: $.fn.dataTable.render.number(',', '.', 4) },
+        { data: 'edge_conf',   title: 'Edge',   render: $.fn.dataTable.render.number(',', '.', 4) },
+        { data: 'device_conf',  title: 'Device', render: $.fn.dataTable.render.number(',', '.', 4) },
+        { data: 'fused_score',  title: 'Fused',  render: $.fn.dataTable.render.number(',', '.', 4) },
+        { data: 'label_pred',   title: 'Pred', render: d => d==1 ? '<span class="badge bg-danger">Attack</span>' : '<span class="badge bg-success">Benign</span>' },
+        { data: 'label_true',   title: 'True', render: d => d==1 ? '<span class="badge bg-danger">Attack</span>' : '<span class="badge bg-success">Benign</span>' },
+        { data: 'original_label', title: 'Type' },
+        { data: 'detected_at',    title: 'Time', render: d => new Date(d).toLocaleString() }
+      ],
+      order: [[9, 'desc']],
+      pageLength: 100,
+      searching: false,
+      info: true,
+      autoWidth: false,
+      language: {
+        info: "Showing _START_ to _END_ of _TOTAL_ logs",
+        infoFiltered: "(filtered from _MAX_ total logs)"
+      }
+    });
+
+    // Apply Filters
+    $('#apply-filters').click(function() {
+      table.draw();
+    });
+
+    // Clear Filters
+    $('#clear-filters').click(function() {
+      $('#filter-panel .form-control, #filter-panel .form-select').val('');
+      table.search('').columns().search('').draw();
+    });
+
+    // Export CSV
+    window.exportCSV = function() {
+      const csv = table.buttons.exportData();
+      const csvData = [csv.header].concat(csv.body);
+      let csvString = csvData.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inads_logs.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+  });
+  </script>
+
+  <div id="loading-overlay" style="
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.7); display:flex; justify-content:center;
+      align-items:center; z-index:2000; visibility:hidden;
+  ">
+    <div class="spinner-border text-success" role="status">
+      <span class="visually-hidden">Loading...</span>
     </div>
   </div>
 
-  <!-- Bootstrap JS bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="logs.js"></script>
 </body>
 </html>

@@ -123,11 +123,8 @@ app.use('/api/core-detection', createProxyMiddleware({
   changeOrigin: true,
   pathRewrite: (path, req) => {
     console.log(`[REWRITE] incoming path: ${path}`);
-    return path;
+    return '/detect'; // Force routing to /detect
   },
-
-  
-
   logLevel: 'debug',
   onProxyReq: (proxyReq, req, res) => {
     console.log(`[PROXY] ${req.method} ${req.originalUrl} → http://127.0.0.1:${FLASK_PORT}/detect`);
