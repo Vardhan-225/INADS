@@ -228,7 +228,8 @@
     document.getElementById("refreshSpinner").style.visibility = "visible";
     updateActivityStatus("Auto-refreshing metrics...");
 
-    const summaryPromise = fetch("http://localhost:5001/api/logs/summary", { credentials: "include" })
+    const t = Date.now();
+    const summaryPromise = fetch(`http://localhost:5001/api/logs/summary?t=${t}`, { credentials: "include" })
       .then(res => res.json())
       .then(summaryData => {
         animateDelta("attack-count-value", summaryData.total);
@@ -237,7 +238,7 @@
         updateActivityStatus("Metrics updated.");
       });
 
-    const previewPromise = fetch("http://localhost:5001/api/logs/preview", { credentials: "include" })
+    const previewPromise = fetch(`http://localhost:5001/api/logs/preview?t=${t}`, { credentials: "include" })
       .then(res => res.json())
       .then(data => {
         const tableBody = document.getElementById("detectionPreviewTable").querySelector("tbody");
@@ -259,7 +260,7 @@
         updateActivityStatus("Preview updated.");
       });
 
-      const timelinePromise = fetch("http://localhost:5001/api/logs/timeline")
+    const timelinePromise = fetch(`http://localhost:5001/api/logs/timeline?t=${t}`)
       .then(res => res.json())
       .then(timelineData => {
         // Use object-based data points for spike coloring and aggregation
@@ -276,14 +277,14 @@
         anomaliesChart.update();
         updateActivityStatus("Timeline chart updated.");
       });
-      // Only when all finish — hide spinner and update status, and log response time
-      Promise.all([summaryPromise, previewPromise, timelinePromise])
-        .finally(() => {
-          document.getElementById("refreshSpinner").style.visibility = "hidden";
-          const duration = (performance.now() - startTime).toFixed(2);
-          updateActivityStatus(`Idle (refreshed in ${duration} ms)`);
-        });
-    }
+    // Only when all finish — hide spinner and update status, and log response time
+    Promise.all([summaryPromise, previewPromise, timelinePromise])
+      .finally(() => {
+        document.getElementById("refreshSpinner").style.visibility = "hidden";
+        const duration = (performance.now() - startTime).toFixed(2);
+        updateActivityStatus(`Idle (refreshed in ${duration} ms)`);
+      });
+  }
 
 </script>
 </script>
@@ -494,9 +495,14 @@
         });
     });
 
-    // On page load, fetch and populate the preview table
+    // On page load, fetch and populate the preview table, and auto-refresh when tab is visible
     document.addEventListener("DOMContentLoaded", () => {
-    refreshAllMetrics();
+      refreshAllMetrics();
+      setInterval(() => {
+        if (!document.hidden) {
+          refreshAllMetrics();
+        }
+      }, 5000); // Auto-refresh every 5 seconds when tab is visible
     });
   </script>
 </body>

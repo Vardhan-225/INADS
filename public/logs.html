@@ -347,16 +347,32 @@
       table.search('').columns().search('').draw();
     });
 
-    // Export CSV
+    // Export CSV (filtered and current page data only)
     window.exportCSV = function() {
-      const csv = table.buttons.exportData();
-      const csvData = [csv.header].concat(csv.body);
-      let csvString = csvData.map(row => row.join(',')).join('\n');
-      const blob = new Blob([csvString], { type: 'text/csv' });
+      const data = table.rows({ search: 'applied' }).data().toArray();
+      const headers = ["ID", "Index", "Global", "Edge", "Device", "Fused", "Pred", "True", "Type", "Time"];
+      const rows = data.map(row => [
+        row.id,
+        row.idx,
+        row.global_conf,
+        row.edge_conf,
+        row.device_conf,
+        row.fused_score,
+        row.label_pred === 1 ? "Attack" : "Benign",
+        row.label_true === 1 ? "Attack" : "Benign",
+        row.original_label || "",
+        new Date(row.detected_at).toLocaleString()
+      ]);
+      
+      const csvContent = [headers].concat(rows)
+        .map(e => e.map(x => `"${String(x).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'inads_logs.csv';
+      a.download = `inads_logs_filtered.csv`;
       a.click();
       URL.revokeObjectURL(url);
     };

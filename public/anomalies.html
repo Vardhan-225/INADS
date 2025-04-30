@@ -72,8 +72,19 @@
     .badge.bg-danger { background:#e53935 }
     .badge.bg-success { background:#43a047 }
     @media(max-width:768px){
-      .sidebar { left:0; width:100%; position:relative; height:auto }
-      .main-content-wrapper.sidebar-open { margin-left:0 }
+      .sidebar {
+        left: -300px;
+        width: 100%;
+        position: fixed;
+        height: 100%;
+        z-index: 1001;
+      }
+      .sidebar.open {
+        left: 0;
+      }
+      .main-content-wrapper.sidebar-open {
+        margin-left: 0;
+      }
     }
   </style>
 </head>
@@ -183,51 +194,84 @@
     $('.hamburger').click(toggleSidebar);
     $('.logout-btn-sidebar').click(logoutRedirect);
 
-    // Draw Timeline Chart
+    // Draw Timeline Chart - always display "Total Anomalies" line initially
     fetch('http://localhost:5001/api/logs/timeline')
       .then(r => r.json())
       .then(data => {
-        if (!Array.isArray(data)) throw new Error("Invalid timeline data format");
-        const labels = data.map(r => r.time_bucket),
-              counts = data.map(r => r.count);
+        console.log("Timeline API response:", data); // Debug log
+
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("Invalid or empty timeline data format");
+        }
+
+        const labels = data.map(r => r.time_bucket);
+        const total = data.map(r => parseInt(r.count || 0));
+
+        const chartData = {
+          labels,
+          datasets: [
+            {
+              label: 'Total Anomalies',
+              data: total,
+              borderColor: '#4caf50',
+              backgroundColor: 'rgba(76,175,80,0.2)',
+              fill: true,
+              tension: 0.3
+            }
+          ]
+        };
+
+        const thresholdLine = {
+          id: 'thresholdLine',
+          afterDatasetsDraw(chart) {
+            const {ctx, chartArea: {top, right, bottom, left}, scales: {y}} = chart;
+            const yThreshold = y.getPixelForValue(10000);
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(left, yThreshold);
+            ctx.lineTo(right, yThreshold);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255,0,0,0.6)';
+            ctx.setLineDash([6, 6]);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255,0,0,0.7)';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('10K ATTACKS THRESHOLD', left + 6, yThreshold - 6);
+            ctx.restore();
+          }
+        };
+
         new Chart($('#anomaliesChart')[0].getContext('2d'), {
           type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              label: 'Anomalies', data: counts,
-              borderColor: 'rgba(0,200,83,1)', backgroundColor: 'rgba(0,200,83,0.2)', fill: true
-            }]
-          },
+          data: chartData,
           options: {
             responsive: true,
-            interaction: {
-              mode: 'index',
-              intersect: false,
-            },
+            interaction: { mode: 'index', intersect: false },
             plugins: {
               tooltip: {
                 mode: 'nearest',
                 intersect: false,
+                callbacks: {
+                  label: function(context) {
+                    return `${context.dataset.label}: ${context.formattedValue} anomalies`;
+                  }
+                }
               },
               legend: {
-                display: false
+                display: true,
+                labels: {
+                  color: '#ccc',
+                  boxWidth: 12,
+                  padding: 20
+                }
               }
             },
             scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  color: '#ccc'
-                }
-              },
-              x: {
-                ticks: {
-                  color: '#ccc'
-                }
-              }
+              y: { beginAtZero: true, ticks: { color: '#ccc' } },
+              x: { ticks: { color: '#ccc' } }
             }
-          }
+          },
+          plugins: [thresholdLine]
         });
       })
       .catch(err => {
@@ -242,6 +286,7 @@
         ajax:{
           url:'http://localhost:5001/api/logs/anomalies',
           dataSrc: function(json) {
+            // Only update TP/FP/FN/TN metrics after detection results are fetched
             let tp = 0, fp = 0, fn = 0, tn = 0;
             if (Array.isArray(json)) {
               json.forEach(row => {
