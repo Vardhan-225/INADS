@@ -510,24 +510,28 @@ app.post('/api/admin/add-user', async (req, res) => {
 /**
  * Edit an Existing User (Admin Only)
  */
- <div id="editUserModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <span class="close" onclick="closeEditModal()">&times;</span>
-      <h3>Edit User</h3>
-      <form id="edit-user-form">
-        <!-- Hidden field for email -->
-        <input type="hidden" id="edit-email" name="email">
-        <label for="edit-password">Password (leave blank to keep unchanged):</label>
-        <input type="password" id="edit-password" name="password" placeholder="New password (optional)">
-        <label for="edit-role">Role:</label>
-        <select id="edit-role" name="role" required>
-          <option value="user">User</option>
-          <option value="admin">Admin</option>
-        </select>
-        <button type="submit">Update User</button>
-      </form>
-    </div>
-  </div>
+app.put('/api/admin/edit-user', async (req, res) => {
+  const { email, password, role } = req.body;
+  if (!req.session.user || req.session.role !== 'admin') {
+    return res.status(403).json({ success: false, message: "Unauthorized" });
+  }
+  try {
+    if (password) {
+      if (!validatePassword(password)) {
+        return res.status(400).json({ success: false, message: "Password must be at least 8 characters long, start with an uppercase letter, and contain at least one digit and one special character." });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await db.execute('UPDATE users SET password = ?, role = ? WHERE email = ?', [hashedPassword, role, email]);
+    } else {
+      await db.execute('UPDATE users SET role = ? WHERE email = ?', [role, email]);
+    }
+    return res.status(200).send('User updated successfully!');
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return res.status(500).send('Error updating user');
+  }
+});
+
 /**
  * Test Database Connection
  */
@@ -584,3 +588,5 @@ app._router.stack
   .map(r => console.log("🟢 NODE PATH:", r.route.path));
 
   console.log("✅ NODE Server running at http://localhost:" + PORT);
+  console.log("✅ Flask Server running at http://localhost:" + FLASK_PORT);
+  
