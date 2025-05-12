@@ -3,11 +3,11 @@
 import os
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
-BASE_DIR   = "/Users/akashthanneeru/Desktop/INADS_Data/Models/Final"
-DATA_PATH  = "/Users/akashthanneeru/Desktop/INADS_Data/Data/Indexed_Dataset_Cyclical_Encoded.csv"
+BASE_DIR   = os.getenv("MODEL_BASE_DIR", "Models")
+DATA_PATH  = os.getenv("DATA_PATH", "data/Indexed_Dataset_Cyclical_Encoded.csv")
 
 GLOBAL_MODEL_PATH = os.path.join(BASE_DIR, "Global", "xgb_global_model.pkl")
-EDGE_MODEL_PATH   = os.path.join(BASE_DIR, "Edge",   "LSTM", "edge_layer_lstm_best.keras")
+EDGE_MODEL_PATH   = os.path.join(BASE_DIR, "Edge", "LSTM", "edge_layer_lstm_best.keras")
 DEVICE_MODEL_PATH = os.path.join(BASE_DIR, "Device", "device_layer_mlp_model.h5")
 
 OUTPUT_CSV    = os.path.join(BASE_DIR, "core_layer_results.csv")
