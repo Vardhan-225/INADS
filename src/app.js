@@ -27,9 +27,10 @@ const rateLimit = require('express-rate-limit'); // For rate limiting
 
 
 // Load environment variables from .env
-require('dotenv').config({
-  path: "/Users/akashthanneeru/Desktop/INADS_Repo/INADS/.env"
-});
+const fs = require('fs');
+const ENV_PATH = path.join(__dirname, '..', '.env');
+require('dotenv').config({ path: ENV_PATH });
+console.log('ENV_PATH:', ENV_PATH, 'exists:', fs.existsSync(ENV_PATH));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
