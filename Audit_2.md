@@ -3,17 +3,19 @@
 - Runtime stack: Flask detection service (`flask_detection/detection_server.py`) hosting inference endpoints; Node/Express application (`src/app.js`) handling authentication/MFA, static asset serving, and proxying to Flask; MySQL database accessed through `mysql.connector` for persistence; static UI under `public/` retrieving results. This document describes repository state as-is (commit workspace) without proposed changes.
 
 1. Data & Provenance
-- Primary dataset referenced at runtime: `INADS_Data/Data/Indexed_Dataset_Cyclical_Encoded.csv` (`flask_detection/config.py:6-14`).
-- Dataset origin: CIC-IDS 2018 flow-level records; preprocessing performed in notebooks under `Notebooks/Revised Approach/` (notably `Dataset_Exploration.ipynb`, `Core_Layer.ipynb`, `Edge_Layer.ipynb`, `Device_Layer.ipynb`) including feature selection, normalization experiments, and cyclical encoding for temporal fields (e.g., hour_sin/hour_cos, weekday_sin/weekday_cos). The notebooks depend on engineered CSV outputs stored in `INADS_Data/Data/`.
-- Schema assumptions: `run_detection_pipeline` expects columns exactly matching feature lists defined in `flask_detection/config.py:17-34`; columns must be numeric (categorical already encoded). No explicit dtype enforcement occurs—pandas default conversion is relied upon. Column order is implicit—`df[FEATURE_LIST]` slices by name, but the underlying models assume training order aligns with these lists.
-- Additional data artifacts: correlation plots (`INADS_Data/Feature_Correlation_*.png`), feature documentation spreadsheets (`INADS_Data/Feature_Documentation.csv/.xlsx`), label encodings (`INADS_Data/Label_Encoder.pkl`) supporting feature engineering.
+- **Runtime dataset**: `INADS_Data/Data/Indexed_Dataset_Cyclical_Encoded.csv` (`flask_detection/config.py:6-14`). This CSV is the consolidated flow-level table generated during the Revised Approach notebooks and is the only file read in production.
+- **Acquisition record**: `Research Paper/…/Dataset Exploration - CSE-CIC-IDS-2018.{docx,pdf}` lists every CSE-CIC-IDS-2018 source file (e.g., `Wednesday-28-02-2018_TrafficForML_CICFlowMeter.csv`, `DoS_Attacks_Filtered.csv`), the attack categories covered, and confirms benign vs attack day coverage. These documents align with the staged CSVs stored under `INADS_Data/Data/` (e.g., `Benign_Traffic.csv`, `DoS_Attacks_Filtered.csv`, `Merged-Dataset-Final.csv`).
+- **Preprocessing provenance**: Development notebooks located in `Notebooks/Revised Approach/` (`Dataset_Exploration.ipynb`, `Global_Layer.ipynb`, `Edge_Layer.ipynb`, `Device_Layer.ipynb`, `Core_Layer.ipynb`) describe cleansing, label normalization, timestamp conversion, and cyclical encoding. Section 1.x of `INADS - Implementation Documentation.{docx,pdf}` mirrors those steps, logging schema validation, duplicated flow removal, and index creation.
+- **Schema expectations**: `run_detection_pipeline` slices the dataframe by feature lists in `flask_detection/config.py:17-34`, presuming all columns exist with numeric dtype (categorical values already mapped/encoded). There is no runtime dtype enforcement; pandas default coercion is relied upon. Feature order within models is consistent with the defined lists; notebooks document the same ordering.
+- **Reference artefacts**: Supporting materials in `Research Paper/…/Images/` include correlation matrices, feature-importance graphics, and `Feature_Documentation.xlsx` that enumerate column definitions. `INADS_Data/Label_Encoder.pkl` stores encoders used during preprocessing but is not loaded in production code.
 
 2. Feature Allocation
-- Layer-specific feature definitions sourced from `flask_detection/config.py:17-34`:
-  - Global layer: 22 features including flow durations, byte rates, inter-arrival stats, flag counts, packet length extrema, throughput metrics, and temporal cyclical encodings.
-  - Edge layer: 7 features focusing on packet length extrema, packet rates, and forward inter-arrival mean, intended for sequential modeling.
-  - Device layer: 22 features emphasizing port usage, packet statistics, flow activity/idle metrics, TCP window/header fields, and temporal cyclical encodings.
-- Feature table (✓ indicates inclusion in layer model):
+- Layer feature lists are declared in `flask_detection/config.py:17-34` and reflected in Section 2.x of `INADS - Implementation Documentation`. Correlation heatmaps and feature-importance plots under `Research Paper/…/Images/` back up the selection rationale.
+- Layer-wise breakdown:
+  - **Global**: 22 features (flow statistics, TCP flags, packet length extremes, throughput metrics, temporal cyclical encodings) tuned for volumetric anomalies.
+  - **Edge**: 7 features (packet length extremes, directional packet rates, forward inter-arrival mean) organised for sequential LSTM modelling.
+  - **Device**: 22 features capturing port behaviour, forward/reverse packet statistics, idle/active durations, TCP window/header characteristics, and temporal cyclicality.
+- Feature table (✓ = feature used by layer model):
 
   | Feature | Global | Edge | Device | Description |
   | --- | --- | --- | --- | --- |
@@ -56,14 +58,14 @@
   | Fwd Seg Size Avg |  |  | ✓ | Average forward TCP segment size.
   | Bwd Seg Size Avg |  |  | ✓ | Average reverse TCP segment size.
 
-- Attribute rationale captured in notebooks (feature correlation plots) and implied by lists above; no automated validation currently ensures consistent feature availability.
+- Attribute rationale is documented in `INADS - Implementation Documentation` §2.1–2.4 and by correlation/feature-importance artefacts in `Research Paper/…/Images/`. There is no automated schema validator—runtime simply indexes columns based on these lists.
 
 3. Model Layers
-- Global layer: XGBoost model loaded via `joblib.load(GLOBAL_MODEL_PATH)` (`flask_detection/detection_utils.py:59-66`). `predict_proba` invoked on scaled feature matrix (`detection_utils.py:84-87`), producing attack probability; confidence uses maximum class probability.
-- Edge layer: LSTM model loaded with TensorFlow `load_model(EDGE_MODEL_PATH)` (`detection_utils.py:67-74`). Edge feature matrix scaled, sequences constructed using sliding window length `SEQUENCE_LEN=5` (`detection_utils.py:96-108`). LSTM predictions produce two-class probabilities, with attack confidence computed as `1 - proba[:,0]`; leading timesteps padded with zeros to align array with original indices.
-- Device layer: Keras MLP loaded via `load_model(DEVICE_MODEL_PATH)` (`detection_utils.py:75-81`). Input features scaled and fed to `.predict(batch_size=64)`, flattening results (`detection_utils.py:90-92`). Assumes model output is single-value probability per flow.
-- Fusion: Weighted sum of confidences `fused = 0.3*g + 0.3*e + 0.4*d` followed by threshold `pred = (fused > 0.5)` (`detection_utils.py:112-117`). Fusion weights defined in `config.py:37-40`; threshold `THRESHOLD=0.5` in `config.py:41`.
-- Output dictionary: generator yields per-index record containing `index`, `global_conf`, `edge_conf`, `device_conf`, `fused_score`, `predicted_label`, `true_label`, `original_label` (`detection_utils.py:123-134`).
+- **Global (XGBoost)**: Loaded via `joblib.load(GLOBAL_MODEL_PATH)` (`flask_detection/detection_utils.py:59-66`); inference uses `predict_proba` on the scaler-transformed feature matrix (`detection_utils.py:84-87`) with the maximum class probability treated as confidence. Training artefacts live under `Research Paper/…/Final/Global/` (model pickle, results CSV, ROC curve, feature importance plot) and mirror the runtime asset.
+- **Edge (LSTM)**: TensorFlow model loaded with `load_model(EDGE_MODEL_PATH)` (`detection_utils.py:67-74`). Edge features are scaled and converted into sliding windows of length `SEQUENCE_LEN=5` (`detection_utils.py:96-108`). Predictions yield `[benign, attack]` probabilities; attack confidence is computed as `1 - proba[:,0]` with leading timesteps padded to keep length alignment. Supporting artefacts are stored at `Final/Edge/LSTM/`.
+- **Device (MLP)**: Keras dense network loaded via `load_model(DEVICE_MODEL_PATH)` (`detection_utils.py:75-81`). Scaled device features are passed to `.predict(batch_size=64)` (`detection_utils.py:90-92`), producing a single-column probability vector. `Final/Device/` includes the deployed MLP plus alternative autoencoder/transformer experiments with their confusion matrices and ROC curves.
+- **Fusion**: Confidences are combined with static weights `W_GLOBAL=0.3`, `W_EDGE=0.3`, `W_DEVICE=0.4` (`config.py:37-40`) and thresholded at `THRESHOLD=0.5` to produce `predicted_label` (`detection_utils.py:112-117`). Additional fusion analyses (`core_layer_results_logistic_fusion.csv`, `…_neural_fusion.csv`, `…_adaptive.csv`) reside in `Final/Core/` but are not wired into runtime.
+- **Output format**: `run_detection_pipeline` yields dictionaries containing `index`, per-layer confidences, fused score, predicted label, true label, and original string label (`detection_utils.py:123-134`). These records feed directly into the `/detect` insertion routine.
 
 4. Flask Detection Service
 - File: `flask_detection/detection_server.py`.
@@ -108,12 +110,11 @@
 - UI obtains data either directly from Flask or via Express proxies depending on page. No integrated build system; assets served verbatim.
 
 8. Model & Artifact Inventory
-- `Models/xgb_global_model.pkl`: joblib-serialized XGBoost binary model loaded by detection utilities.
-- `Models/edge_layer_lstm_best.keras`: TensorFlow SavedModel/HDF5 LSTM network.
-- `Models/device_layer_mlp_model.h5`: TensorFlow/Keras dense network for device layer.
-- `XGBoost/xgboost_inads.json`, `.ubj`, `.model`: alternative serialized models; not referenced in code.
-- No scaler artifacts (e.g., `StandardScaler` pickles) present; `save_scalers.py` intended to create them but fails due to missing config constants.
-- Additional artifacts: `INADS_Data/Label_Encoder.pkl` for categorical encoding, but not directly used in runtime pipeline.
+- **Runtime directory (`Models/`)**: Contains the exact artefacts consumed by `detection_utils.py`—`xgb_global_model.pkl`, `edge_layer_lstm_best.keras`, and `device_layer_mlp_model.h5`.
+- **Alternative serialisations (`XGBoost/`)**: JSON/UBJ exports of the XGBoost model exist (`xgboost_inads.json`, `.ubj`, `.model`) but are not referenced in code; they can facilitate the planned migration away from pickle.
+- **Final experiment repository**: `Research Paper/INADS___Intelligent_Network_Anomaly_Detection_System/Final/` stores evaluation-ready artefacts—per-layer result CSVs, confusion matrices, ROC curves, SHAP plot, comparative attack summaries, persisted scalers (`global_scaler.pkl`, `edge_scaler.pkl`, `device_scaler.pkl`), and fusion experiment outputs. These files document the empirical performance reported in the implementation docs.
+- **Explainability & feature resources**: `Research Paper/…/Images/` holds correlation heatmaps, feature-importance plots, and `Feature_Documentation.xlsx`, all referenced in the narrative.
+- **Label encoding**: `INADS_Data/Label_Encoder.pkl` remains from preprocessing workflows but is not imported during runtime inference.
 
 9. Database Schema & Behavior
 - `flask_detection/detection_server.py` assumes MySQL database named `INADS` (`config.py:47-52`) with table `logs` containing columns: `idx`, `global_conf`, `edge_conf`, `device_conf`, `fused_score`, `label_pred`, `label_true`, `original_label`, `detected_at`. Schema file not included; inference based on insert statements and query usage in `detect_and_log.py`.
@@ -134,5 +135,6 @@
 - No seed/reproducibility controls: No `np.random.seed`, `tf.random.set_seed` in runtime code; metrics only printed.
 - Flask debug mode & wide-open CORS: `app.run(debug=True, host="0.0.0.0")` and `supports_credentials=True` for all requests from specified origin.
 - Manuscript divergence: `Research Paper/.../conference_101719.tex` describes autoencoder + XGBoost fusion not present in code.
+- Fusion accuracy imbalance: `Research Paper/.../Final/layerwise_attack_detection_comparison.csv` shows the fused output severely under-detects infiltration attacks despite strong Global-layer performance, highlighting the need for adaptive weighting.
 - Additional: Blueprint `/filter` expects column `id` but insert uses `idx`; potential query mismatch (`detect_and_log.py:189-233`).
 - Express logs sensitive data: `src/app.js:580` outputs DB credentials. Sessions stored in memory; may not scale but acceptable for current setup.
