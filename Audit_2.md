@@ -20,27 +20,41 @@
   | Flow Duration | ✓ |  | ✓ | Session length capturing volumetric anomalies and device dwell time.
   | Flow Byts/s | ✓ |  |  | Aggregate byte rate for volumetric detection.
   | Flow IAT Mean | ✓ |  | ✓ | Inter-arrival mean indicating traffic regularity across flows.
-  | Fwd IAT Mean |  | ✓ |  | Forward inter-arrival interval averaged within sequential windows.
   | Flow IAT Std | ✓ |  | ✓ | Variability in packet timing.
   | Flow IAT Max | ✓ |  |  | Max gap to flag stealth/slow behaviors.
   | Dst Port | ✓ |  | ✓ | Encoded destination service information.
   | Protocol | ✓ |  |  | Transport protocol identifier.
-  | SYN/ACK/FIN/PSH Flag Count | ✓ |  |  | TCP flag distributions for flow behavior.
-  | Pkt Len Min/Max | ✓ | ✓ |  | Packet length extrema for volumetric shifts (Edge uses both extremes).
-  | Fwd/Bwd Pkts/s | ✓ | ✓ |  | Directional throughput rates.
-  | Fwd Pkt Len Max | ✓ | ✓ | ✓ | Forward payload spikes across layers.
-  | Bwd Pkt Len Min | ✓ | ✓ | ✓ | Reverse channel minima.
-  | TotLen Fwd/Bwd Pkts | ✓ |  |  | Total bytes per direction.
-  | Hour_sin, Hour_cos | ✓ |  | ✓ | Cyclical hourly pattern signals.
-  | Weekday_sin, Weekday_cos | ✓ |  |  | Weekly periodicity.
-  | Pkt Len Var |  |  | ✓ | Packet length variance for device anomaly detection.
-  | Fwd/Bwd Pkt Len Std |  |  | ✓ | Directional payload dispersion.
-  | Idle Max/Mean |  |  | ✓ | Idle durations per flow.
-  | Active Min/Max |  |  | ✓ | Active burst durations.
-  | Init Fwd/Bwd Win Byts |  |  | ✓ | Initial TCP window byte counts.
-  | Fwd/Bwd Header Len |  |  | ✓ | Header length anomalies.
-  | Pkt Size Avg |  |  | ✓ | Average packet size.
-  | Fwd/Bwd Seg Size Avg |  |  | ✓ | Average TCP segment size.
+  | SYN Flag Cnt | ✓ |  |  | TCP SYN flood indicator count.
+  | ACK Flag Cnt | ✓ |  |  | Successful handshake acknowledgement frequency.
+  | FIN Flag Cnt | ✓ |  |  | Termination pattern analyzer for reconnaissance.
+  | PSH Flag Cnt | ✓ |  |  | Payload push anomaly detector.
+  | Pkt Len Min | ✓ | ✓ |  | Minimum packet length per flow/window.
+  | Pkt Len Max | ✓ | ✓ |  | Maximum packet length per flow/window.
+  | Fwd Pkts/s | ✓ | ✓ |  | Forward packet rate.
+  | Bwd Pkts/s | ✓ | ✓ |  | Reverse packet rate complement.
+  | Fwd Pkt Len Max | ✓ | ✓ | ✓ | Peak forward payload size across layers.
+  | Bwd Pkt Len Min | ✓ | ✓ | ✓ | Smallest reverse payload size.
+  | TotLen Fwd Pkts | ✓ |  |  | Total forward bytes per flow.
+  | TotLen Bwd Pkts | ✓ |  |  | Total reverse bytes per flow.
+  | Hour_sin | ✓ |  | ✓ | Cyclical hour encoding (sine component).
+  | Hour_cos | ✓ |  | ✓ | Cyclical hour encoding (cosine component).
+  | Weekday_sin | ✓ |  |  | Weekly periodicity sine component.
+  | Weekday_cos | ✓ |  |  | Weekly periodicity cosine component.
+  | Fwd IAT Mean |  | ✓ |  | Forward inter-arrival mean inside sequence window.
+  | Pkt Len Var |  |  | ✓ | Packet length variance per device flow.
+  | Fwd Pkt Len Std |  |  | ✓ | Forward packet length standard deviation.
+  | Bwd Pkt Len Std |  |  | ✓ | Reverse packet length standard deviation.
+  | Idle Max |  |  | ✓ | Maximum idle time between packets.
+  | Idle Mean |  |  | ✓ | Average idle interval.
+  | Active Min |  |  | ✓ | Minimum active burst duration.
+  | Active Max |  |  | ✓ | Maximum active burst duration.
+  | Init Fwd Win Byts |  |  | ✓ | Initial forward TCP window bytes.
+  | Init Bwd Win Byts |  |  | ✓ | Initial reverse TCP window bytes.
+  | Fwd Header Len |  |  | ✓ | Forward header length aggregate.
+  | Bwd Header Len |  |  | ✓ | Reverse header length aggregate.
+  | Pkt Size Avg |  |  | ✓ | Mean packet size per device flow.
+  | Fwd Seg Size Avg |  |  | ✓ | Average forward TCP segment size.
+  | Bwd Seg Size Avg |  |  | ✓ | Average reverse TCP segment size.
 
 - Attribute rationale captured in notebooks (feature correlation plots) and implied by lists above; no automated validation currently ensures consistent feature availability.
 
