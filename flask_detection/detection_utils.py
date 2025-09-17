@@ -56,10 +56,29 @@ def run_detection_pipeline():
     n = len(df)
 
     # 1) Load models
-    print("Loading models…")
-    xgbm = joblib.load(GLOBAL_MODEL_PATH)
-    lstm = load_model(EDGE_MODEL_PATH)
-    mlp  = load_model(DEVICE_MODEL_PATH)
+    print("Loading XGBoost model…")
+    try:
+        xgbm = joblib.load(GLOBAL_MODEL_PATH)
+        print("XGBoost model loaded.")
+    except Exception as e:
+        print(f"Error loading XGBoost model: {e}")
+        raise
+
+    print("Loading LSTM model…")
+    try:
+        lstm = load_model(EDGE_MODEL_PATH)
+        print("LSTM model loaded.")
+    except Exception as e:
+        print(f"Error loading LSTM model: {e}")
+        raise
+
+    print("Loading MLP model…")
+    try:
+        mlp  = load_model(DEVICE_MODEL_PATH)
+        print("MLP model loaded.")
+    except Exception as e:
+        print(f"Error loading MLP model: {e}")
+        raise
 
     # 2) Scale & predict GLOBAL
     print("Global layer inference…")
@@ -98,8 +117,8 @@ def run_detection_pipeline():
     true  = y_true[:m]
 
     # 6) Evaluate only
-    print("Accuracy:", accuracy_score(true, pred))
-    print("Confusion matrix:\n", confusion_matrix(true, pred))
+    print("Accuracy:", accuracy_score(np.asarray(true), np.asarray(pred)))
+    print("Confusion matrix:\n", confusion_matrix(np.asarray(true), np.asarray(pred)))
 
     # 7) Build full list
     for i in tqdm(range(m), desc="Building detection outputs"):

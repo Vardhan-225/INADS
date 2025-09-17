@@ -24,7 +24,7 @@ def detect():
     print(f"➡️ Detection start | batch={BATCH_INSERT_SIZE}, sleep={SLEEP_INTERVAL_SEC}")
     conn   = mysql.connector.connect(**MYSQL_CONFIG)
     cursor = conn.cursor(prepared=True)
-    conn.autocommit = False
+    conn.start_transaction()
 
     cursor.execute("TRUNCATE TABLE logs")
     print("🧹 logs cleared")
