@@ -15,3 +15,24 @@ logs/
 dist/
 build/
 
+# Ignore dataset files
+INADS_Data/
+Research Paper/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Remove problematic global ignore rules
+# *
+# !*/
+# !.gitignore
+# !README.md
+# !requirements.txt
+# !flask_detection/
+# !INADS/
+# !public/
+# !src/
+# !XGBoost/
+# !package.json
+
