@@ -19,7 +19,8 @@
   | --- | --- | --- | --- | --- |
   | Flow Duration | ✓ |  | ✓ | Session length capturing volumetric anomalies and device dwell time.
   | Flow Byts/s | ✓ |  |  | Aggregate byte rate for volumetric detection.
-  | Flow IAT Mean | ✓ | ✓ | ✓ | Inter-arrival mean indicating traffic regularity.
+  | Flow IAT Mean | ✓ |  | ✓ | Inter-arrival mean indicating traffic regularity across flows.
+  | Fwd IAT Mean |  | ✓ |  | Forward inter-arrival interval averaged within sequential windows.
   | Flow IAT Std | ✓ |  | ✓ | Variability in packet timing.
   | Flow IAT Max | ✓ |  |  | Max gap to flag stealth/slow behaviors.
   | Dst Port | ✓ |  | ✓ | Encoded destination service information.
@@ -121,4 +122,3 @@
 - Manuscript divergence: `Research Paper/.../conference_101719.tex` describes autoencoder + XGBoost fusion not present in code.
 - Additional: Blueprint `/filter` expects column `id` but insert uses `idx`; potential query mismatch (`detect_and_log.py:189-233`).
 - Express logs sensitive data: `src/app.js:580` outputs DB credentials. Sessions stored in memory; may not scale but acceptable for current setup.
-
