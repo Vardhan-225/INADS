@@ -11,7 +11,7 @@
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
 
-\title{INADS: A Multi-Layered Hybrid Machine Learning Framework for Real-Time Anomaly Detection in Critical Network Infrastructure\\ \thanks{This work is a part of the Graduate Directed Project (GDP) at Northwest Missouri State University.} }
+\title{INADS: A Multi-Layered Machine Learning Framework for Real-Time Network Anomaly Detection with Weighted Fusion\\ \thanks{This work is a part of the Graduate Directed Project (GDP) at Northwest Missouri State University.} }
 
 \author{\IEEEauthorblockN{1\textsuperscript{st} Akash Thanneeru}
 \IEEEauthorblockA{\textit{Dept. of Computer Science} \\
@@ -29,31 +29,27 @@ ZQIN@nwmissouri.edu}
 \maketitle
 
 \begin{abstract}
-The rapid evolution of cyberattacks necessitates robust, adaptive, and multi-perspective defense mechanisms. In this paper, we present the Intelligent Network Anomaly Detection System (INADS), a novel multi-layered framework that integrates machine learning models across the Global, Edge, and Device layers of the TCP/IP stack. The Global layer employs XGBoost to detect volumetric attacks (e.g., DDoS, DoS, and brute force), achieving high accuracy on large-scale network flows. The Edge layer leverages LSTM networks to capture behavioral and sequential anomalies, though challenges remain in detecting subtle infiltration events. At the Device layer, we implement a hybrid approach combining Isolation Forest with a supervised Multi-Layer Perceptron (MLP) to target endpoint anomalies, such as stealthy infiltrations and zero-day attacks. The outputs of these layers are then fused in a Core Fusion layer using a weighted averaging scheme to generate a final anomaly confidence score.
+We present the Intelligent Network Anomaly Detection System (INADS), a three-layer intrusion detection framework operating on flow records from the CSE--CIC--IDS~2018 dataset. INADS combines: (i) a Global layer (XGBoost) for volumetric and statistical cues, (ii) an Edge layer (LSTM) over short flow sequences to capture temporal dynamics, and (iii) a Device layer (MLP) focusing on endpoint behavioral features. Per-layer anomaly confidences are fused by a calibrated, static weighted sum (0.3/0.3/0.4 for Global/Edge/Device) followed by thresholding.
 
-Our methodology was validated using the CSE-CIC-IDS-2018 dataset, which was preprocessed through cleaning, feature engineering—including cyclical encoding—and extensive correlation analysis. Experimental results demonstrate that while the Global and Edge layers achieve accuracies above 96%, the Device layer shows promise with overall high precision for known attacks but requires further improvement in detecting infiltration. This work not only underscores the potential of integrating multi-perspective analyses for network security but also lays a foundation for future enhancements, including blockchain-based logging for tamper-proof record keeping, federated learning for decentralized model updates, reinforcement learning for dynamic threshold adaptation, and multi-layer encryption to bolster data privacy.
-
-These contributions, together with a detailed evaluation of our fusion strategy, offer a comprehensive solution for real-time, adaptive network intrusion detection, positioning INADS as a significant step toward next-generation cybersecurity systems [1], [2], [3].
-
-
+We document a reproducible data pipeline (cleaning, cyclical time encoding, and layer-wise feature allocation) and attach archived artefacts (ROC curves, confusion matrices, result CSVs) for verification. INADS preserves the dataset's natural class imbalance—no resampling—to reflect operational skew. Results show strong volumetric detection and surface a limitation on minority classes (e.g., infiltration), motivating adaptive fusion as future work. All models and evaluation outputs are packaged with this paper to support reuse.
 \end{abstract}
 
 
 \begin{IEEEkeywords}
-Anomaly Detection, Network Security, Machine Learning, Ensemble Learning, Hybrid Model, Critical Infrastructure
+Anomaly Detection, Network Security, Machine Learning, Ensemble Learning, Weighted Fusion, Explainability, Critical Infrastructure
 \end{IEEEkeywords}
 
 \section{Introduction}
 
 The exponential growth of internet-connected devices and digital services has brought unprecedented convenience, but it has also opened critical infrastructures to sophisticated cyber threats. Traditional Intrusion Detection Systems (IDS) often operate at a single layer of the network stack, leading to blind spots in detecting evolving threats such as zero-day attacks, stealthy intrusions, and large-scale volumetric Distributed Denial-of-Service (DDoS) assaults. These monolithic IDS struggle to balance detection accuracy, latency, and adaptability across varied attack surfaces.
 
-To address these limitations, we propose **INADS** (Intelligent Network Anomaly Detection System), a multi-layered machine learning architecture that mimics hierarchical inspection strategies akin to defense-in-depth and Zero Trust models. INADS leverages distinct ML models at the Global (Firewall), Edge (Router), and Device (Endpoint) layers, each capturing unique statistical, sequential, and behavioral characteristics of network traffic. These models generate anomaly confidence scores, which are aggregated in a Core Fusion Layer using XGBoost to make final detection decisions.
+To address these limitations, we propose **INADS** (Intelligent Network Anomaly Detection System), a multi-layered machine learning architecture that mimics hierarchical inspection strategies akin to defense-in-depth and Zero Trust models. INADS leverages distinct ML models at the Global (Firewall), Edge (Router), and Device (Endpoint) layers, each capturing unique statistical, sequential, and behavioral characteristics of network traffic. These models generate anomaly confidence scores, which are aggregated in a Core Fusion Layer using a static weighted average to make final detection decisions.
 
 \textbf{Contributions of this paper include:}
 \begin{enumerate}
     \item A novel multi-layered ML architecture simulating real-world packet inspection hierarchies.
-    \item Design and deployment of optimized detection models at each layer, using tailored feature subsets for Global (XGBoost), Edge (LSTM), and Device (LSTM Autoencoder + MLP).
-    \item Implementation of a Core Fusion Layer that aggregates layer-wise anomaly scores using XGBoost for robust final classification.
+    \item Design and deployment of optimized detection models at each layer, using tailored feature subsets for Global (XGBoost), Edge (LSTM), and Device (MLP).
+    \item Implementation of a Core Fusion Layer that aggregates layer-wise anomaly scores via a weighted sum (0.3/0.3/0.4 for Global/Edge/Device) and thresholding.
     \item Extensive evaluation using the CSE-CIC-IDS 2018 dataset, with results demonstrating improved accuracy, reduced false positives, and faster detection in multi-layer fusion compared to standalone models.
     \item A forward-looking discussion on integrating INADS with federated learning, blockchain-based audit logging, and IoT-specific anomaly detection for scalable, tamper-proof deployment.
 \end{enumerate}
@@ -74,18 +70,68 @@ The INADS framework is designed as a defense-in-depth, multi-layered architectur
 
 \subsection{Dataset and Preprocessing}
 
-We use the CSE-CIC-IDS 2018 dataset, which includes real-world attack scenarios such as DDoS, DoS, brute force, infiltration, botnets, and benign traffic. The dataset was cleaned by removing duplicate rows, null values, and irrelevant features such as `Timestamp`, `Flow ID`, and `Fwd Header Length`. We retained 15 optimized features selected through correlation analysis (threshold = 0.85), Random Forest feature importance ranking, and Recursive Feature Elimination (RFE). The final dataset was split into an 80/20 training and testing set, preserving class distribution.
+We use the CSE--CIC--IDS~2018 dataset, drawing from benign and attack days (e.g., Wednesday--28--02, DoS\_Attacks\_Filtered, Friday--16--02, Friday--23--02). We merge flows, coerce dtypes, drop zero-duration/invalid-label records, and de-duplicate exact rows. After preprocessing we obtain a consolidated table of approximately 2.27\,M flows. Temporal features are derived from timestamps and then encoded cyclically (Hour\_sin/cos, Weekday\_sin/cos); the raw timestamp is dropped only after deriving these features. We keep the original class imbalance (no resampling). The runtime system consumes an indexed, cyclical-encoded CSV with 85 engineered features.
 
 \subsection{Feature Engineering and Allocation}
 
-The selected features were divided across three perspectives:
+We allocate features by perspective to minimize redundancy and reflect the vantage point of each layer. Summaries:
 \begin{itemize}
-    \item \textbf{Global Layer}: Focused on statistical and volumetric patterns (e.g., `Flow Duration`, `Bwd Pkt Len Mean`, `TotLen Fwd Pkts`)
-    \item \textbf{Edge Layer}: Emphasized temporal and sequential features (e.g., `Flow IAT Mean`, `Fwd IAT Std`)
-    \item \textbf{Device Layer}: Captured low-level behavioral traits and endpoint-specific interactions (e.g., `Fwd Pkt Len Max`, `Flow Byts/s`)
+    \item \textbf{Global (22 features)}: Flow duration and inter-arrival statistics, TCP flag counts (SYN/ACK/FIN/PSH), packet-length extrema, forward/reverse packet rates, totals per direction, and cyclical time encodings.
+    \item \textbf{Edge (7 features)}: Packet-length extrema, forward/reverse packet rates, and \emph{forward} inter-arrival mean used as a sequence input.
+    \item \textbf{Device (22 features)}: Port usage, forward/reverse packet statistics (variance/std/avg), idle/active durations, TCP window/header fields, and cyclical encodings.
 \end{itemize}
+The exact lists used by the production system are mirrored in the code and documentation and are preserved in the artefact bundle.
 
-Each layer was trained on the same dataset but with different subsets of these 15 features. Cyclical encoding was applied to time-based features where applicable.
+\begin{table}[htbp]
+\caption{Layer-specific feature allocation (\checkmark indicates feature used).}
+\centering
+\small
+\begin{tabular}{|l|c|c|c|}
+\hline
+Feature & Global & Edge & Device \\
+\hline
+Flow Duration & $\checkmark$ &  & $\checkmark$ \\
+Flow Byts/s & $\checkmark$ &  &  \\
+Flow IAT Mean & $\checkmark$ &  & $\checkmark$ \\
+Flow IAT Std & $\checkmark$ &  & $\checkmark$ \\
+Flow IAT Max & $\checkmark$ &  &  \\
+Dst Port & $\checkmark$ &  & $\checkmark$ \\
+Protocol & $\checkmark$ &  &  \\
+SYN Flag Cnt & $\checkmark$ &  &  \\
+ACK Flag Cnt & $\checkmark$ &  &  \\
+FIN Flag Cnt & $\checkmark$ &  &  \\
+PSH Flag Cnt & $\checkmark$ &  &  \\
+Pkt Len Min & $\checkmark$ & $\checkmark$ &  \\
+Pkt Len Max & $\checkmark$ & $\checkmark$ &  \\
+Fwd Pkts/s & $\checkmark$ & $\checkmark$ &  \\
+Bwd Pkts/s & $\checkmark$ & $\checkmark$ &  \\
+Fwd Pkt Len Max & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Bwd Pkt Len Min & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+TotLen Fwd Pkts & $\checkmark$ &  &  \\
+TotLen Bwd Pkts & $\checkmark$ &  &  \\
+Hour\_sin & $\checkmark$ &  & $\checkmark$ \\
+Hour\_cos & $\checkmark$ &  & $\checkmark$ \\
+Weekday\_sin & $\checkmark$ &  &  \\
+Weekday\_cos & $\checkmark$ &  &  \\
+Fwd IAT Mean &  & $\checkmark$ &  \\
+Pkt Len Var &  &  & $\checkmark$ \\
+Fwd Pkt Len Std &  &  & $\checkmark$ \\
+Bwd Pkt Len Std &  &  & $\checkmark$ \\
+Idle Max &  &  & $\checkmark$ \\
+Idle Mean &  &  & $\checkmark$ \\
+Active Min &  &  & $\checkmark$ \\
+Active Max &  &  & $\checkmark$ \\
+Init Fwd Win Byts &  &  & $\checkmark$ \\
+Init Bwd Win Byts &  &  & $\checkmark$ \\
+Fwd Header Len &  &  & $\checkmark$ \\
+Bwd Header Len &  &  & $\checkmark$ \\
+Pkt Size Avg &  &  & $\checkmark$ \\
+Fwd Seg Size Avg &  &  & $\checkmark$ \\
+Bwd Seg Size Avg &  &  & $\checkmark$ \\
+\hline
+\end{tabular}
+\label{tab:feature_allocation}
+\end{table}
 
 \subsection{Layer-Wise Model Design}
 
@@ -95,19 +141,15 @@ This layer simulates firewall-level inspections and is trained using an XGBoost 
 \subsubsection{Edge Layer: LSTM Sequence Model}
 This layer represents router-level statistical behavior. It uses a Long Short-Term Memory (LSTM) model to process temporal sequences of packets (windowed flows). The LSTM learns temporal anomalies and outputs a sequence-level anomaly score.
 
-\subsubsection{Device Layer: LSTM Autoencoder + MLP Hybrid}
-This layer emulates endpoint behavior inspection. It uses an LSTM Autoencoder trained only on benign data to compute a reconstruction error, flagging anomalies when the error exceeds a learned threshold. Additionally, a supervised Multi-Layer Perceptron (MLP) is trained on labeled data. The final device anomaly score is a weighted average:
-\[
-S_{device} = \alpha \cdot E_{recon} + (1 - \alpha) \cdot P_{mlp}
-\]
-where \( E_{recon} \) is the reconstruction error, \( P_{mlp} \) is the MLP probability, and \( \alpha \) is a tunable weight.
+\subsubsection{Device Layer: MLP Classifier}
+This layer emulates endpoint behavior inspection using a supervised Multi-Layer Perceptron (MLP) over device-centric features (port usage; forward/reverse packet length statistics; idle/active durations; TCP window/header fields; time encodings). The model outputs an anomaly confidence per flow.
 
-\subsubsection{Core Fusion Layer: Confidence Aggregation with XGBoost}
-All three layers output confidence scores. These scores are aggregated and passed to a Core Fusion XGBoost model:
+\subsubsection{Core Fusion Layer: Weighted Confidence Aggregation}
+All three layers output confidence scores $c_g, c_e, c_d$. We compute a fused score by static weighting:
 \[
-Input = \{ S_{global}, S_{edge}, S_{device} \}
+S = 0.3\,c_g + 0.3\,c_e + 0.4\,c_d,
 \]
-This layer outputs the final binary classification (Anomaly/Benign) and a final anomaly confidence score. It acts as the decision-making brain of the INADS system, learning how to weigh different perspectives dynamically.
+and classify as anomaly if $S>0.5$. Offline experiments also considered logistic and neural fusion as well as adaptive overrides; artefacts are included with this paper.
 
 \section{Experimental Setup and Results}
 
@@ -128,97 +170,96 @@ To ensure a fair and robust comparison across models and layers, we used the fol
 Each model also outputs an anomaly confidence score in the range [0,1], which is passed to the Core Fusion Layer.
 
 \subsection{Global Layer (XGBoost)}
-The XGBoost model at the Global Layer was trained on high-level volumetric features. It demonstrated strong performance in detecting DoS and DDoS attacks.
-
-\begin{table}[htbp]
-\caption{Global Layer - XGBoost Performance}
-\begin{center}
-\begin{tabular}{|l|c|}
-\hline
-Metric & Score \\
-\hline
-Accuracy & 97.2\% \\
-Precision & 96.8\% \\
-Recall & 96.1\% \\
-F1-Score & 96.4\% \\
-ROC-AUC & 0.982 \\
-\hline
-\end{tabular}
-\label{tab:global_results}
-\end{center}
-\end{table}
+The XGBoost model at the Global Layer consumes the Global feature subset and outputs an anomaly confidence. Performance artefacts (ROC curve and results CSV) are archived under \texttt{Final/Global/}. [TODO: Insert summary metrics from \texttt{Final/Global/global\_layer\_results.csv} if desired.]
 
 \subsection{Edge Layer (LSTM)}
-The LSTM model at the Edge Layer processes sequential input using windowed flows. It was effective at capturing statistical fluctuations and time-based anomalies, although slight performance drops were observed in handling infiltration attacks.
+The Edge layer LSTM forms 5-step windows over the Edge features and outputs an anomaly confidence per aligned flow. Artefacts (ROC curve, confusion matrix, results CSV) are archived under \texttt{Final/Edge/LSTM/}. [TODO: Insert summary metrics from \texttt{Final/Edge/LSTM/edge\_layer\_results.csv} if desired.]
 
-\begin{table}[htbp]
-\caption{Edge Layer - LSTM Performance}
-\begin{center}
-\begin{tabular}{|l|c|}
-\hline
-Metric & Score \\
-\hline
-Accuracy & 96.1\% \\
-Precision & 95.4\% \\
-Recall & 94.8\% \\
-F1-Score & 95.1\% \\
-ROC-AUC & 0.976 \\
-\hline
-\end{tabular}
-\label{tab:edge_results}
-\end{center}
-\end{table}
+\subsection{Device Layer (MLP)}
+The Device layer uses an MLP trained on device-centric features to yield per-flow anomaly confidences. Artefacts (ROC curve, confusion matrix, results CSV) are archived under \texttt{Final/Device/}. [TODO: Insert summary metrics from \texttt{Final/Device/device\_layer\_mlp\_results.csv} if desired.]
 
-\subsection{Device Layer (LSTM Autoencoder + MLP Hybrid)}
-This hybrid layer computes both reconstruction error (Autoencoder) and classification probability (MLP). The Device Layer excels at detecting endpoint anomalies and stealthy threats but exhibits slightly higher false negatives in infiltration-type attacks.
+\subsection{Core Fusion Layer (Weighted)}
+We compute $S = 0.3\,c_g + 0.3\,c_e + 0.4\,c_d$ and classify as anomaly if $S>0.5$. Offline fusion variants (logistic, neural, adaptive) and their CSV outputs are archived in \texttt{Final/Core/}. [TODO: Insert a compact table comparing fused vs. standalone metrics directly from \texttt{Final/Core/core\_layer\_results.csv} if desired.]
 
-\begin{table}[htbp]
-\caption{Device Layer - Hybrid Performance}
-\begin{center}
-\begin{tabular}{|l|c|}
-\hline
-Metric & Score \\
-\hline
-Accuracy & 93.7\% \\
-Precision & 92.5\% \\
-Recall & 91.0\% \\
-F1-Score & 91.7\% \\
-ROC-AUC & 0.951 \\
-\hline
-\end{tabular}
-\label{tab:device_results}
-\end{center}
-\end{table}
-
-\subsection{Core Fusion Layer (XGBoost)}
-The final fusion model was trained on the three confidence scores: $S_{global}$, $S_{edge}$, and $S_{device}$. The Core Layer showed improved accuracy and reduced false positives by leveraging multi-perspective insights.
-
-\begin{table}[htbp]
-\caption{Core Fusion Layer Performance}
-\begin{center}
-\begin{tabular}{|l|c|}
-\hline
-Metric & Score \\
-\hline
-Accuracy & 98.1\% \\
-Precision & 97.9\% \\
-Recall & 97.5\% \\
-F1-Score & 97.7\% \\
-ROC-AUC & 0.991 \\
-\hline
-\end{tabular}
-\label{tab:core_results}
-\end{center}
-\end{table}
-
-\subsection{ROC Curves and Confidence Score Analysis}
-Figure~\ref{fig:roc_all} shows ROC curves for all four layers. The Core Layer achieves the highest AUC, demonstrating its ability to integrate multiple perspectives effectively. Additionally, confidence score distributions were analyzed to tune decision thresholds and reduce false positives.
+\subsection{ROC Curves and Confusion Matrices}
+We include archived evaluation artefacts for each layer and the fused model.
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{roc_curves.png}}
-\caption{ROC Curves for Global, Edge, Device, and Core Layers}
-\label{fig:roc_all}
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Global/global_layer_roc.png}
+\caption{Global layer ROC (XGBoost).}
+\label{fig:roc_global}
 \end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Edge/LSTM/edge_layer_lstm_roc.png}
+\caption{Edge layer ROC (LSTM).}
+\label{fig:roc_edge}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Device/device_layer_mlp_roc.png}
+\caption{Device layer ROC (MLP).}
+\label{fig:roc_device}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Core/core_layer_roc.png}
+\caption{Core fusion ROC (weighted confidences).}
+\label{fig:roc_core}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Edge/LSTM/edge_layer_lstm_confusion_matrix.png}
+\caption{Edge layer confusion matrix.}
+\label{fig:cm_edge}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Device/device_layer_mlp_confusion_matrix.png}
+\caption{Device layer confusion matrix.}
+\label{fig:cm_device}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{Final/Core/core_layer_confusion_matrix.png}
+\caption{Core fusion confusion matrix.}
+\label{fig:cm_core}
+\end{figure}
+
+\noindent We summarize two representative categories from \texttt{Final/layerwise\_attack\_detection\_comparison.csv} to illustrate strengths and limitations:
+
+\begin{table}[htbp]
+\caption{Layer-wise detection rates by attack category (excerpt).}
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+Attack & Fused & Global & Edge & Device \\
+\hline
+DDoS LOIC--HTTP & 100.0\% & 100.0\% & 99.99\% & 99.95\% \\
+Infiltration & 0.17\% & 100.0\% & 0.03\% & 0.14\% \\
+\hline
+\end{tabular}
+\end{center}
+\label{tab:attack_by_layer}
+\end{table}
+
+\section{Reproducibility and Artefacts}
+All models, result CSVs and figures referenced in this paper are included in the repository alongside the LaTeX source: Global (\texttt{Final/Global/}), Edge (\texttt{Final/Edge/LSTM/}), Device (\texttt{Final/Device/}), and Core fusion (\texttt{Final/Core/}). The runtime dataset consumed by the system is \texttt{INADS\_Data/Data/Indexed\_Dataset\_Cyclical\_Encoded.csv}. Fusion variants are archived as \texttt{core\_layer\_results\_logistic\_fusion.csv}, \texttt{...\_neural\_fusion.csv} and \texttt{...\_adaptive.csv} under \texttt{Final/Core/}; layer-wise attack detection summaries are provided in \texttt{Final/layerwise\_attack\_detection\_comparison.csv}.
+
+\section{System Implementation and Deployment}
+\textbf{Runtime stack}: A Flask detection service exposes `/detect` and log-query endpoints; a Node/Express gateway handles authentication and proxies; a MySQL database persists detection outputs; and a static UI renders results. Source files live under \texttt{flask\_Detection/}, \texttt{src/}, and \texttt{public/}. The runtime ingests the consolidated CSV and streams results to the `logs` table.
+
+\textbf{Known issues (current repo state)}: (i) Detection-time scaler re-fitting risks leakage; persisted scalers in \texttt{Final/} are not yet wired. (ii) `/detect` truncates the `logs` table before inserts; history loss may occur on failure. (iii) Authentication missing on heavy endpoints; Flask debug enabled and credentialed CORS allowed. (iv) Fusion uses static weights; infiltration under-detection suggests adaptive weighting as future work.
+
+\section{Limitations and Future Work}
+We preserve dataset imbalance (realistic), which stresses minority class detection. Fused performance under-detects infiltration (Tab.~\ref{tab:attack_by_layer}); future work includes adaptive fusion strategies, persisted scaler integration with schema validation, authenticated/asynchronous detection jobs, and federated learning for IoT deployments. We also plan latency/throughput instrumentation and cloud-native packaging for reproducible benchmarks.
 
 \section*{References}
 
@@ -250,8 +291,4 @@ citation first, followed by the original foreign-language citation \cite{b6}.
 \bibitem{b6} Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
 \bibitem{b7} M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
 \end{thebibliography}
-\vspace{12pt}
-\color{red}
-IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
-
 \end{document}
